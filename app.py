@@ -89,7 +89,7 @@ df_display = df[df['year_month'].isin(display_months)]
 
 # 메인 헤더
 st.title("ICT 품목 수출입 실적 대시보드")
-st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다.")
+st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다. ( ) 내 비율은 전년 동월 대비 증감률(YoY)입니다.")
 st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)")
 
 # (1) 상단: ICT 대분류 기준 선그래프 및 파이차트
