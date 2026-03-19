@@ -13,8 +13,25 @@ st.set_page_config(page_title="ICT 품목 수출입 대시보드", layout="wide"
 st.markdown("""
 <style>
     .main { background-color: #f8f9fa; }
-    .stMetric { background-color: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .stTable { background-color: white; }
+    /* 메트릭 박스 조밀하게 설정 */
+    div[data-testid="stMetric"] {
+        background-color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        border: 1px solid #e5e7eb;
+    }
+    div[data-testid="stMetricLabel"] > div {
+        font-size: 0.8rem !important;
+        color: #4b5563 !important;
+    }
+    div[data-testid="stMetricValue"] > div {
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+    }
+    div[data-testid="stMetricDelta"] > div {
+        font-size: 0.8rem !important;
+    }
     h1, h2, h3 { color: #1e3a8a; }
 </style>
 """, unsafe_allow_html=True)
@@ -33,26 +50,20 @@ def load_data(months=12):
     dates.sort()
     
     all_data = []
-    # 데이터 프로세서의 상세 품목 리스트 사용
-    items_list = [
-        ('854232', '메모리 반도체'), ('854231', '시스템 반도체'), 
-        ('848620', '반도체 제조장비(장비)'), ('853224', 'MLCC(부품)'),
-        ('853400', '인쇄회로기판(PCB)'), ('381800', '제조용 화학물(소재)'),
-        ('851713', '휴대폰'), ('847170', 'SSD'), ('852491', 'OLED')
-    ]
+    # 데이터 프로세서에서 정의한 상세 품목 리스트 사용 (약 50개)
+    items_list = list(data_processor.ICT_DETAIL_ITEMS.items())
     
     for d in dates:
-        # 실제 환경에서는 client.fetch_monthly_data(d) 호출
-        # 여기서는 데모를 위한 고도화된 더미 데이터 생성
+        # 데모를 위한 고도화된 더미 데이터 생성
         df_month = pd.DataFrame({
             'year_month': d,
-            'hs_code': [x[0] for x in items_list],
-            'item_name': [x[1] for x in items_list],
+            'hs_code': [x[1] for x in items_list],
+            'item_name': [x[0] for x in items_list],
             'exp_amount': [
-                (5000 if '반도체' in x[1] else 1000) + (int(d)%100)*20 + (hash(x[1])%500)
+                (5000 if '반도체' in x[0] else 500) + (int(d)%100)*10 + (hash(x[0])%1000)
                 for x in items_list
             ],
-            'imp_amount': [500 + (hash(x[1])%200) for x in items_list],
+            'imp_amount': [100 + (hash(x[0])%500) for x in items_list],
             'trade_balance': [0] * len(items_list)
         })
         df_month['trade_balance'] = df_month['exp_amount'] - df_month['imp_amount']
@@ -137,11 +148,15 @@ curr_df = df_display[df_display['year_month'] == last_month]
 prev_df = df_display[df_display['year_month'] == prev_month]
 growth_df = processor.calculate_growth(curr_df, prev_df)
 
-cols = st.columns(3) # 3열로 나누어 표시
+# 수출액 기준 내림차순 정렬 및 상위 50개 선택
+growth_df = growth_df.sort_values('exp_amount_curr', ascending=False).head(50)
+
+cols_per_row = 5
+cols = st.columns(cols_per_row)
 for i, (index, row) in enumerate(growth_df.iterrows()):
-    with cols[i % 3]:
+    with cols[i % cols_per_row]:
         st.metric(
-            label=f"{row['item_name']} ({row['hs_code']})",
+            label=f"{row['item_name']}",
             value=f"{row['exp_amount_curr']:,}",
             delta=f"{row['growth_rate']:.1f}%",
         )
