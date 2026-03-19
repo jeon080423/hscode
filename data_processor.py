@@ -1,3 +1,5 @@
+import pandas as pd
+
 # ICT 주요 품목 HS 코드 매핑 (대분류 기준)
 ICT_CATEGORIES = {
     "반도체": ["8541", "8542"],

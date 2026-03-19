@@ -78,9 +78,16 @@ st.markdown(f"기준: 최근 {n_months}개월 데이터 (단위: 백만 USD)")
 # (1) 상단: ICT 대분류 기준 선그래프 (사용자 요청: 선그래프로 변경)
 st.header("📈 ICT 대분류별 수출 추이 (Line Chart)")
 cat_df = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
+
+# 가장 최근 달에만 금액 표시를 위한 레이블 생성
+last_month_val = cat_df['year_month'].max()
+cat_df['text_label'] = cat_df.apply(lambda x: f"{x['exp_amount']:,}" if x['year_month'] == last_month_val else "", axis=1)
+
 fig_line = px.line(cat_df, x='year_month', y='exp_amount', color='category', 
-                   markers=True, title="월별/카테고리별 수출액 추이",
+                   markers=True, text='text_label',
+                   title="월별/카테고리별 수출액 추이 (최근월 금액 표시)",
                    labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'category': '대분류'})
+fig_line.update_traces(textposition="top center")
 fig_line.update_layout(template="plotly_white", hovermode="x unified")
 st.plotly_chart(fig_line, use_container_width=True)
 
