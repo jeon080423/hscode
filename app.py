@@ -7,7 +7,7 @@ import api_client
 import data_processor
 
 # 페이지 설정
-st.set_page_config(page_title="ICT 품목 수출입 대시보드", layout="wide")
+st.set_page_config(page_title="관세청 ICT 품목 당월 수출 실적", layout="wide")
 
 # 스타일 설정
 st.markdown("""
@@ -50,7 +50,7 @@ def load_data(months=12):
     dates.sort()
     
     all_data = []
-    # 데이터 프로세서에서 정의한 상세 품목 리스트 사용 (약 50개)
+    # 데이터 프로세서에서 정의한 상세 품목 리스트 사용 (약 100개)
     items_list = list(data_processor.ICT_DETAIL_ITEMS.items())
     
     for d in dates:
@@ -87,13 +87,14 @@ all_months = sorted(df['year_month'].unique())
 display_months = all_months[-n_months:]
 df_display = df[df['year_month'].isin(display_months)]
 
-# 메인 헤더
-st.title("ICT 품목 수출입 실적 대시보드")
-st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다. ( ) 내 비율은 전년 동월 대비 증감률(YoY)입니다.")
+# 메인 헤더 (제목 수정: 관세청 ICT 품목 당월 수출 실적)
+st.title("관세청 ICT 품목 당월 수출 실적")
+st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다.")
 st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)")
 
 # (1) 상단: ICT 대분류 기준 선그래프 및 파이차트
 st.header("📈 ICT 대분류별 수출 현황")
+st.caption("( ) 내 비율은 전년 동월 대비 증감률(YoY)입니다.")
 
 # 데이터 가공
 cat_df_full = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
@@ -113,7 +114,7 @@ def get_yoy_label(row):
     if not yoy_data.empty:
         yoy_amt = yoy_data.iloc[0]['exp_amount']
         growth = (curr_amt - yoy_amt) / yoy_amt * 100
-        return f"{curr_amt:,}\n({growth:+.1f}%)" # 차트 공간을 위해 간소화
+        return f"{curr_amt:,}\n({growth:+.1f}%)" 
     return f"{curr_amt:,}"
 
 cat_df_display['text_label'] = cat_df_display.apply(get_yoy_label, axis=1)
@@ -140,8 +141,9 @@ with col2:
     fig_pie.update_layout(showlegend=False, template="plotly_white")
     st.plotly_chart(fig_pie, use_container_width=True)
 
-# (2) 중단: 개별 품목 당월 수출 현황 카드
+# (2) 중단: 개별 품목 당월 현황 (수출 상위 100개)
 st.header("📦 주요 품목 당월 현황")
+st.caption("비율은 전월 대비 증감률(MoM)입니다.")
 last_month = df_display['year_month'].max()
 prev_month = sorted(df_display['year_month'].unique())[-2] if len(df_display['year_month'].unique()) > 1 else last_month
 
@@ -149,8 +151,8 @@ curr_df = df_display[df_display['year_month'] == last_month]
 prev_df = df_display[df_display['year_month'] == prev_month]
 growth_df = processor.calculate_growth(curr_df, prev_df)
 
-# 수출액 기준 내림차순 정렬 및 상위 50개 선택
-growth_df = growth_df.sort_values('exp_amount_curr', ascending=False).head(50)
+# 수출액 기준 내림차순 정렬 및 상위 100개 선택
+growth_df = growth_df.sort_values('exp_amount_curr', ascending=False).head(100)
 
 cols_per_row = 5
 cols = st.columns(cols_per_row)
@@ -162,7 +164,7 @@ for i, (index, row) in enumerate(growth_df.iterrows()):
             delta=f"{row['growth_rate']:.1f}%",
         )
 
-# (3) 하단: 품목별 누적 수출 그래프 (사용자 요청: 2026년 기준 누적 그래프)
+# (3) 하단: 품목별 누적 수출 그래프
 st.header("2026년 기준 품목별 누적 수출 추이")
 # 2026년 데이터 필터링
 df_2026 = df_display[df_display['year_month'].str.startswith('2026')]
