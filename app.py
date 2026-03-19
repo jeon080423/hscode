@@ -60,7 +60,8 @@ def load_data(months=12):
             'hs_code': [x[1] for x in items_list],
             'item_name': [x[0] for x in items_list],
             'exp_amount': [
-                (5000 if '반도체' in x[0] else 500) + (int(d)%100)*10 + (hash(x[0])%1000)
+                # 연도별 성장성을 부여하기 위해 연도(d//100) 반영
+                (5000 if '반도체' in x[0] else 500) + (int(d)//100 - 2024)*200 + (int(d)%100)*10 + (hash(x[0])%1000)
                 for x in items_list
             ],
             'imp_amount': [100 + (hash(x[0])%500) for x in items_list],
