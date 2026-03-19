@@ -80,43 +80,53 @@ st.title("ICT 품목 수출입 실적 대시보드")
 st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다.")
 st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)")
 
-# (1) 상단: ICT 대분류 기준 선그래프
-st.header("📈 ICT 대분류별 수출 추이 (Line Chart)")
+# (1) 상단: ICT 대분류 기준 선그래프 및 파이차트
+st.header("📈 ICT 대분류별 수출 현황")
+
+# 데이터 가공
 cat_df_full = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
 cat_df_display = cat_df_full[cat_df_full['year_month'].isin(display_months)].copy()
 
 # YoY 계산 로직
 last_month_val = cat_df_display['year_month'].max()
-# 1년 전 달 계산 (YYYYMM -> 1년 전)
 lm_date = datetime.strptime(last_month_val, "%Y%m")
 yoy_month_val = (lm_date - timedelta(days=365)).strftime("%Y%m")
 
-# 레이블 생성 함수
 def get_yoy_label(row):
     if row['year_month'] != last_month_val:
         return ""
-    
-    # 해당 카테고리의 전년 동월 데이터 찾기
     yoy_data = cat_df_full[(cat_df_full['year_month'] == yoy_month_val) & 
                            (cat_df_full['category'] == row['category'])]
-    
     curr_amt = row['exp_amount']
     if not yoy_data.empty:
         yoy_amt = yoy_data.iloc[0]['exp_amount']
         growth = (curr_amt - yoy_amt) / yoy_amt * 100
-        return f"{curr_amt:,} (전년 {yoy_amt:,}, {growth:+.1f}%)"
-    else:
-        return f"{curr_amt:,} (전년 데이터 없음)"
+        return f"{curr_amt:,}\n({growth:+.1f}%)" # 차트 공간을 위해 간소화
+    return f"{curr_amt:,}"
 
 cat_df_display['text_label'] = cat_df_display.apply(get_yoy_label, axis=1)
 
-fig_line = px.line(cat_df_display, x='year_month', y='exp_amount', color='category', 
-                   markers=True, text='text_label',
-                   title=f"월별/카테고리별 수출액 추이 (최근월 {last_month_val} vs 전년 동월 비교)",
-                   labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'category': '대분류'})
-fig_line.update_traces(textposition="top center")
-fig_line.update_layout(template="plotly_white", hovermode="x unified")
-st.plotly_chart(fig_line, use_container_width=True)
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    fig_line = px.line(cat_df_display, x='year_month', y='exp_amount', color='category', 
+                       markers=True, text='text_label',
+                       title=f"월별 수출액 추이",
+                       labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'category': '대분류'})
+    fig_line.update_traces(textposition="top center")
+    fig_line.update_layout(template="plotly_white", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    st.plotly_chart(fig_line, use_container_width=True)
+
+with col2:
+    # 당월 기준 파이차트 생성
+    last_month_pie_df = cat_df_display[cat_df_display['year_month'] == last_month_val]
+    fig_pie = px.pie(last_month_pie_df, values='exp_amount', names='category',
+                     title=f"당월({last_month_val}) 비중",
+                     hole=0.4,
+                     color_discrete_sequence=px.colors.qualitative.Pastel)
+    fig_pie.update_traces(textinfo='percent+label')
+    fig_pie.update_layout(showlegend=False, template="plotly_white")
+    st.plotly_chart(fig_pie, use_container_width=True)
 
 # (2) 중단: 개별 품목 당월 수출 현황 카드
 st.header("📦 주요 품목 당월 현황")
