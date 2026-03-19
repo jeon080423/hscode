@@ -104,9 +104,9 @@ def get_yoy_label(row):
     if not yoy_data.empty:
         yoy_amt = yoy_data.iloc[0]['exp_amount']
         growth = (curr_amt - yoy_amt) / yoy_amt * 100
-        return f"{curr_amt:,} (前年 {yoy_amt:,}, {growth:+.1f}%)"
+        return f"{curr_amt:,} (전년 {yoy_amt:,}, {growth:+.1f}%)"
     else:
-        return f"{curr_amt:,} (前年 데이터 없음)"
+        return f"{curr_amt:,} (전년 데이터 없음)"
 
 cat_df_display['text_label'] = cat_df_display.apply(get_yoy_label, axis=1)
 
@@ -137,7 +137,7 @@ for i, (index, row) in enumerate(growth_df.iterrows()):
         )
 
 # (3) 하단: 품목별 누적 수출 그래프 (사용자 요청: 2026년 기준 누적 그래프)
-st.header("累積 2026년 기준 품목별 누적 수출 추이")
+st.header("2026년 기준 품목별 누적 수출 추이")
 # 2026년 데이터 필터링
 df_2026 = df_display[df_display['year_month'].str.startswith('2026')]
 if df_2026.empty:
