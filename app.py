@@ -175,9 +175,12 @@ for i, (index, row) in enumerate(growth_df.iterrows()):
 
 # (3) 하단: ICT 품목 포트폴리오 분석 (Bubble Chart)
 st.header(f"📊 주요 품목 포트폴리오 분석 ({last_month[:4]}.{last_month[4:]})")
-st.caption("X축: 수출액, Y축: 전월 대비 증감률, 버블 크기: 수출액 규모")
+st.caption("수출액 상위 30개 품목 기준 | X축: 수출액, Y축: 전월 대비 증감률, 버블 크기: 수출액 규모")
 
-fig_bubble = px.scatter(growth_df, 
+# 차트 가독성을 위해 상위 30개 품목으로 제한
+growth_df_bubble = growth_df.head(30)
+
+fig_bubble = px.scatter(growth_df_bubble, 
                         x='exp_amount_curr', 
                         y='growth_rate',
                         size='exp_amount_curr', 
@@ -186,7 +189,7 @@ fig_bubble = px.scatter(growth_df,
                         text='item_name',
                         size_max=60,
                         labels={'exp_amount_curr': '당월 수출액 (백만 달러)', 'growth_rate': '증감률 (MoM %)', 'category': '대분류'},
-                        title="ICT 품목별 수출 규모 vs 성장률 분석")
+                        title="주요 품목별 수출 규모 vs 성장률 분석 (Top 30)")
 
 fig_bubble.update_traces(textposition='top center')
 fig_bubble.update_layout(
