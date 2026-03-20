@@ -92,127 +92,97 @@ st.title("관세청 ICT 품목 당월 수출 실적")
 st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다.")
 st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)")
 
-# (1) 상단: ICT 대분류 기준 선그래프 및 파이차트
-st.header("📈 ICT 대분류별 수출 현황")
-
-# 데이터 가공
-cat_df_full = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
-cat_df_display = cat_df_full[cat_df_full['year_month'].isin(display_months)].copy()
-
-# YoY 계산 로직
-last_month_val = cat_df_display['year_month'].max()
-lm_date = datetime.strptime(last_month_val, "%Y%m")
-yoy_month_val = (lm_date - timedelta(days=365)).strftime("%Y%m")
-
-def get_yoy_label(row):
-    if row['year_month'] != last_month_val:
-        return ""
-    yoy_data = cat_df_full[(cat_df_full['year_month'] == yoy_month_val) & 
-                           (cat_df_full['category'] == row['category'])]
-    curr_amt = row['exp_amount']
-    if not yoy_data.empty:
-        yoy_amt = yoy_data.iloc[0]['exp_amount']
-        growth = (curr_amt - yoy_amt) / yoy_amt * 100
-        return f"{curr_amt:,}\n({growth:+.1f}%)" 
-    return f"{curr_amt:,}"
-
-cat_df_display['text_label'] = cat_df_display.apply(get_yoy_label, axis=1)
-
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.subheader("월별 수출액 추이")
-    st.caption("( ) 내 비율은 전년 동월 대비 증감률(YoY)입니다.")
-    fig_line = px.line(cat_df_display, x='year_month', y='exp_amount', color='category', 
-                       markers=True, text='text_label',
-                       labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'category': '대분류'})
-    fig_line.update_traces(textposition="top center")
-    fig_line.update_layout(template="plotly_white", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    st.plotly_chart(fig_line, use_container_width=True)
-
-with col2:
-    # 당월 기준 파이차트 생성
-    last_month_pie_df = cat_df_display[cat_df_display['year_month'] == last_month_val]
-    fig_pie = px.pie(last_month_pie_df, values='exp_amount', names='category',
-                     title=f"당월({last_month_val}) 비중",
-                     hole=0.4,
-                     color_discrete_sequence=px.colors.qualitative.Pastel)
-    fig_pie.update_traces(textinfo='percent+label')
-    fig_pie.update_layout(showlegend=False, template="plotly_white")
-    st.plotly_chart(fig_pie, use_container_width=True)
-
-# (2) 중단: 개별 품목 당월 현황
+# 데이터 사전 계산 (탭 공용)
 last_month = df_display['year_month'].max()
 prev_month = sorted(df_display['year_month'].unique())[-2] if len(df_display['year_month'].unique()) > 1 else last_month
-
-st.header(f"📦 주요 품목 ({last_month[:4]}.{last_month[4:]}) 현황")
-st.caption("비율은 전월 대비 증감률(MoM)입니다.")
-
-# 카테고리 필터 UI
-cat_options = ["전체"] + list(data_processor.ICT_CATEGORIES.keys())
-selected_cat = st.selectbox("품목군 필터", cat_options, index=0)
-
 curr_df = df_display[df_display['year_month'] == last_month]
 prev_df = df_display[df_display['year_month'] == prev_month]
 growth_df = processor.calculate_growth(curr_df, prev_df)
 
-# 필터링 적용
-if selected_cat != "전체":
-    growth_df = growth_df[growth_df['category'] == selected_cat]
+# 탭 메뉴 구성
+tab1, tab2, tab3 = st.tabs(["📊 월별 수출액 추이", "📦 주요 품목 현황", "📋 품목별 상세 데이터"])
 
-# 수출액 기준 내림차순 정렬 (모든 항목 표시)
-growth_df = growth_df.sort_values('exp_amount_curr', ascending=False)
+with tab1:
+    # (1) 상단: ICT 대분류 기준 선그래프 및 파이차트
+    st.header("📈 ICT 대분류별 수출 현황")
+    
+    # 카테고리별 데이터 (YoY 계산 포함)
+    cat_df_full = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
+    cat_df_display = cat_df_full[cat_df_full['year_month'].isin(display_months)].copy()
+    yoy_month_val = (datetime.strptime(last_month, "%Y%m") - timedelta(days=365)).strftime("%Y%m")
 
-cols_per_row = 5
-cols = st.columns(cols_per_row)
-for i, (index, row) in enumerate(growth_df.iterrows()):
-    with cols[i % cols_per_row]:
-        st.metric(
-            label=f"{row['item_name']}",
-            value=f"{row['exp_amount_curr']:,} 백만 달러",
-            delta=f"{row['growth_rate']:.1f}%",
-        )
+    def get_yoy_label(row):
+        if row['year_month'] != last_month: return ""
+        yoy_data = cat_df_full[(cat_df_full['year_month'] == yoy_month_val) & (cat_df_full['category'] == row['category'])]
+        if not yoy_data.empty:
+            growth = (row['exp_amount'] - yoy_data.iloc[0]['exp_amount']) / yoy_data.iloc[0]['exp_amount'] * 100
+            return f"{row['exp_amount']:,}\n({growth:+.1f}%)" 
+        return f"{row['exp_amount']:,}"
 
-# (3) 하단: ICT 품목 포트폴리오 분석 (Bubble Chart)
-st.header(f"📊 주요 품목 포트폴리오 분석 ({last_month[:4]}.{last_month[4:]})")
-st.caption("수출액 상위 30개 품목 기준 | X축: 수출액, Y축: 전월 대비 증감률, 버블 크기: 수출액 규모")
+    cat_df_display['text_label'] = cat_df_display.apply(get_yoy_label, axis=1)
 
-# 차트 가독성을 위해 상위 30개 품목으로 제한
-growth_df_bubble = growth_df.head(30).copy()
-# 레이블 겹침 방지를 위해 상위 12개 품목에만 텍스트 표시
-growth_df_bubble['display_name'] = growth_df_bubble.apply(
-    lambda x: x['item_name'] if x.name in growth_df_bubble.index[:12] else "", axis=1
-)
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("월별 수출액 추이")
+        st.caption("( ) 내 비율은 전년 동월 대비 증감률(YoY)입니다.")
+        fig_line = px.line(cat_df_display, x='year_month', y='exp_amount', color='category', markers=True, text='text_label',
+                           labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'category': '대분류'})
+        fig_line.update_traces(textposition="top center")
+        fig_line.update_layout(template="plotly_white", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        st.plotly_chart(fig_line, use_container_width=True)
 
-fig_bubble = px.scatter(growth_df_bubble, 
-                        x='exp_amount_curr', 
-                        y='growth_rate',
-                        size='exp_amount_curr', 
-                        color='category',
-                        hover_name='item_name',
-                        text='display_name',
-                        size_max=45, # 버블 크기 약간 축소
-                        labels={'exp_amount_curr': '당월 수출액 (백만 달러)', 'growth_rate': '증감률 (MoM %)', 'category': '대분류'},
-                        title="주요 품목별 수출 규모 vs 성장률 분석 (Top 30)",
-                        height=600) # 높이 확대
+    with col2:
+        last_month_pie_df = cat_df_display[cat_df_display['year_month'] == last_month]
+        fig_pie = px.pie(last_month_pie_df, values='exp_amount', names='category', title=f"당월({last_month}) 비중",
+                         hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
+        fig_pie.update_traces(textinfo='percent+label')
+        fig_pie.update_layout(showlegend=False, template="plotly_white")
+        st.plotly_chart(fig_pie, use_container_width=True)
 
-fig_bubble.update_traces(textposition='top center', textfont=dict(size=11))
-fig_bubble.update_layout(
-    template="plotly_white",
-    margin=dict(t=80, b=50, l=50, r=50), # 상단 마진 확대 (글씨 잘림 방지)
-    xaxis=dict(showgrid=True, gridcolor='lightgray', tickformat=","),
-    yaxis=dict(showgrid=True, gridcolor='lightgray', zeroline=True, zerolinecolor='black', ticksuffix="%"),
-    showlegend=True
-)
+    st.divider()
+    
+    # (3) 하단: ICT 품목 포트폴리오 분석 (Bubble Chart)
+    st.header(f"📊 주요 품목 포트폴리오 분석 ({last_month[:4]}.{last_month[4:]})")
+    st.caption("수출액 상위 30개 품목 기준 | X축: 수출액, Y축: 전월 대비 증감률, 버블 크기: 수출액 규모")
 
-st.plotly_chart(fig_bubble, use_container_width=True)
+    growth_df_bubble = growth_df.sort_values('exp_amount_curr', ascending=False).head(30).copy()
+    growth_df_bubble['display_name'] = growth_df_bubble.apply(lambda x: x['item_name'] if x.name in growth_df_bubble.index[:12] else "", axis=1)
 
-# 서브 메뉴: 상세 분석 탭
-st.divider()
-st.header("📋 품목별 상세 데이터")
-st.dataframe(growth_df[['hs_code', 'item_name', 'exp_amount_prev', 'exp_amount_curr', 'growth_amount', 'growth_rate']], 
-             use_container_width=True, hide_index=True)
+    fig_bubble = px.scatter(growth_df_bubble, x='exp_amount_curr', y='growth_rate', size='exp_amount_curr', color='category',
+                            hover_name='item_name', text='display_name', size_max=45,
+                            labels={'exp_amount_curr': '당월 수출액 (백만 달러)', 'growth_rate': '증감률 (MoM %)', 'category': '대분류'},
+                            title="주요 품목별 수출 규모 vs 성장률 분석 (Top 30)", height=600)
 
-# 다운로드
-csv = growth_df.to_csv(index=False).encode('utf-8-sig')
-st.download_button("📥 상세 데이터 CSV 다운로드", data=csv, file_name=f"ict_export_{last_month}.csv", mime="text/csv")
+    fig_bubble.update_traces(textposition='top center', textfont=dict(size=11))
+    fig_bubble.update_layout(template="plotly_white", margin=dict(t=80, b=50, l=50, r=50),
+                            xaxis=dict(showgrid=True, gridcolor='lightgray', tickformat=","),
+                            yaxis=dict(showgrid=True, gridcolor='lightgray', zeroline=True, zerolinecolor='black', ticksuffix="%"),
+                            showlegend=True)
+    st.plotly_chart(fig_bubble, use_container_width=True)
+
+with tab2:
+    st.header(f"📦 주요 품목 ({last_month[:4]}.{last_month[4:]}) 현황")
+    st.caption("비율은 전월 대비 증감률(MoM)입니다.")
+
+    cat_options = ["전체"] + list(data_processor.ICT_CATEGORIES.keys())
+    selected_cat = st.selectbox("품목군 필터", cat_options, index=0, key="grid_cat_filter")
+
+    display_growth_df = growth_df.copy()
+    if selected_cat != "전체":
+        display_growth_df = display_growth_df[display_growth_df['category'] == selected_cat]
+
+    display_growth_df = display_growth_df.sort_values('exp_amount_curr', ascending=False)
+
+    cols_per_row = 5
+    cols = st.columns(cols_per_row)
+    for i, (index, row) in enumerate(display_growth_df.iterrows()):
+        with cols[i % cols_per_row]:
+            st.metric(label=f"{row['item_name']}", value=f"{row['exp_amount_curr']:,} 백만 달러", delta=f"{row['growth_rate']:.1f}%")
+
+with tab3:
+    st.header("📋 품목별 상세 데이터")
+    st.dataframe(growth_df[['hs_code', 'item_name', 'exp_amount_prev', 'exp_amount_curr', 'growth_amount', 'growth_rate']], 
+                 use_container_width=True, hide_index=True)
+
+    csv = growth_df.to_csv(index=False).encode('utf-8-sig')
+    st.download_button("📥 상세 데이터 CSV 다운로드", data=csv, file_name=f"ict_export_{last_month}.csv", mime="text/csv")
