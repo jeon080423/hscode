@@ -169,7 +169,7 @@ for i, (index, row) in enumerate(growth_df.iterrows()):
     with cols[i % cols_per_row]:
         st.metric(
             label=f"{row['item_name']}",
-            value=f"{row['exp_amount_curr']:,} MUSD",
+            value=f"{row['exp_amount_curr']:,} 백만 달러",
             delta=f"{row['growth_rate']:.1f}%",
         )
 
