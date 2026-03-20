@@ -95,9 +95,18 @@ st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)
 # 데이터 사전 계산 (탭 공용)
 last_month = df_display['year_month'].max()
 prev_month = sorted(df_display['year_month'].unique())[-2] if len(df_display['year_month'].unique()) > 1 else last_month
+yoy_month_val = (datetime.strptime(last_month, "%Y%m") - timedelta(days=365)).strftime("%Y%m")
+
 curr_df = df_display[df_display['year_month'] == last_month]
 prev_df = df_display[df_display['year_month'] == prev_month]
-growth_df = processor.calculate_growth(curr_df, prev_df)
+yoy_df_source = df[df['year_month'] == yoy_month_val]
+
+growth_df_mom = processor.calculate_growth(curr_df, prev_df)
+growth_df_yoy = processor.calculate_growth(curr_df, yoy_df_source)
+
+# MoM과 YoY를 합친 최종 데이터프레임
+growth_df = growth_df_mom.copy()
+growth_df['growth_rate_yoy'] = growth_df_yoy['growth_rate']
 
 # 탭 메뉴 구성
 tab1, tab2, tab3 = st.tabs(["📊 월별 수출액 추이", "📦 주요 품목 현황", "📋 품목별 상세 데이터"])
@@ -109,7 +118,6 @@ with tab1:
     # 카테고리별 데이터 (YoY 계산 포함)
     cat_df_full = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
     cat_df_display = cat_df_full[cat_df_full['year_month'].isin(display_months)].copy()
-    yoy_month_val = (datetime.strptime(last_month, "%Y%m") - timedelta(days=365)).strftime("%Y%m")
 
     def get_yoy_label(row):
         if row['year_month'] != last_month: return ""
@@ -143,15 +151,15 @@ with tab1:
     
     # (3) 하단: ICT 품목 포트폴리오 분석 (Bubble Chart)
     st.header(f"📊 주요 품목 포트폴리오 분석 ({last_month[:4]}.{last_month[4:]})")
-    st.caption("수출액 상위 30개 품목 기준 | X축: 수출액, Y축: 전월 대비 증감률, 버블 크기: 수출액 규모")
+    st.caption("수출액 상위 30개 품목 기준 | X축: 수출액, Y축: 전년 동월 대비 증감률(YoY), 버블 크기: 수출액 규모")
 
     growth_df_bubble = growth_df.sort_values('exp_amount_curr', ascending=False).head(30).copy()
     growth_df_bubble['display_name'] = growth_df_bubble.apply(lambda x: x['item_name'] if x.name in growth_df_bubble.index[:12] else "", axis=1)
 
-    fig_bubble = px.scatter(growth_df_bubble, x='exp_amount_curr', y='growth_rate', size='exp_amount_curr', color='category',
+    fig_bubble = px.scatter(growth_df_bubble, x='exp_amount_curr', y='growth_rate_yoy', size='exp_amount_curr', color='category',
                             hover_name='item_name', text='display_name', size_max=45,
-                            labels={'exp_amount_curr': '당월 수출액 (백만 달러)', 'growth_rate': '증감률 (MoM %)', 'category': '대분류'},
-                            title="주요 품목별 수출 규모 vs 성장률 분석 (Top 30)", height=600)
+                            labels={'exp_amount_curr': '당월 수출액 (백만 달러)', 'growth_rate_yoy': '증감률 (YoY %)', 'category': '대분류'},
+                            title="주요 품목별 수출 규모 vs 전년 동월 대비 성장률(YoY) 분석", height=600)
 
     fig_bubble.update_traces(textposition='top center', textfont=dict(size=11))
     fig_bubble.update_layout(template="plotly_white", margin=dict(t=80, b=50, l=50, r=50),
