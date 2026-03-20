@@ -150,22 +150,27 @@ with tab1:
     st.divider()
     
     # (3) 하단: ICT 품목 포트폴리오 분석 (Bubble Chart)
-    st.header(f"📊 주요 품목 포트폴리오 분석 ({last_month[:4]}.{last_month[4:]})")
-    st.caption("수출액 상위 30개 품목 기준 | X축: 수출액, Y축: 전년 동월 대비 증감률(YoY), 버블 크기: 수출액 규모")
+    st.header(f"📊 ICT 대분류별 포트폴리오 분석 ({last_month[:4]}.{last_month[4:]})")
+    st.caption("X축: 수출액, Y축: 전년 동월 대비 증감률(YoY), 버블 크기: 수출액 규모")
 
-    growth_df_bubble = growth_df.sort_values('exp_amount_curr', ascending=False).head(30).copy()
-    growth_df_bubble['display_name'] = growth_df_bubble.apply(lambda x: x['item_name'] if x.name in growth_df_bubble.index[:12] else "", axis=1)
+    # 대분류별 집계 데이터 준비 (이미 cat_df_full 존재)
+    curr_cat_df = cat_df_full[cat_df_full['year_month'] == last_month].copy()
+    yoy_cat_df = cat_df_full[cat_df_full['year_month'] == yoy_month_val].copy()
+    
+    # YoY 성장률 계산을 위한 병합
+    cat_portfolio_df = pd.merge(curr_cat_df, yoy_cat_df[['category', 'exp_amount']], on='category', suffixes=('_curr', '_yoy'))
+    cat_portfolio_df['growth_rate_yoy'] = (cat_portfolio_df['exp_amount_curr'] - cat_portfolio_df['exp_amount_yoy']) / cat_portfolio_df['exp_amount_yoy'] * 100
 
-    fig_bubble = px.scatter(growth_df_bubble, x='exp_amount_curr', y='growth_rate_yoy', size='exp_amount_curr', color='category',
-                            hover_name='item_name', text='display_name', size_max=45,
+    fig_bubble = px.scatter(cat_portfolio_df, x='exp_amount_curr', y='growth_rate_yoy', size='exp_amount_curr', color='category',
+                            hover_name='category', text='category', size_max=60,
                             labels={'exp_amount_curr': '당월 수출액 (백만 달러)', 'growth_rate_yoy': '증감률 (YoY %)', 'category': '대분류'},
-                            title="주요 품목별 수출 규모 vs 전년 동월 대비 성장률(YoY) 분석", height=600)
+                            title="ICT 대분류별 수출 규모 vs 전년 동월 대비 성장률(YoY) 분석", height=600)
 
-    fig_bubble.update_traces(textposition='top center', textfont=dict(size=11))
+    fig_bubble.update_traces(textposition='top center', textfont=dict(size=12, weight='bold'))
     fig_bubble.update_layout(template="plotly_white", margin=dict(t=80, b=50, l=50, r=50),
                             xaxis=dict(showgrid=True, gridcolor='lightgray', tickformat=","),
                             yaxis=dict(showgrid=True, gridcolor='lightgray', zeroline=True, zerolinecolor='black', ticksuffix="%"),
-                            showlegend=True)
+                            showlegend=False) # 텍스트가 이미 있으므로 범례는 생략 가능
     st.plotly_chart(fig_bubble, use_container_width=True)
 
 with tab2:
