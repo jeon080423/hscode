@@ -94,7 +94,6 @@ st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)
 
 # (1) 상단: ICT 대분류 기준 선그래프 및 파이차트
 st.header("📈 ICT 대분류별 수출 현황")
-st.caption("( ) 내 비율은 전년 동월 대비 증감률(YoY)입니다.")
 
 # 데이터 가공
 cat_df_full = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
@@ -122,9 +121,10 @@ cat_df_display['text_label'] = cat_df_display.apply(get_yoy_label, axis=1)
 col1, col2 = st.columns([2, 1])
 
 with col1:
+    st.subheader("월별 수출액 추이")
+    st.caption("( ) 내 비율은 전년 동월 대비 증감률(YoY)입니다.")
     fig_line = px.line(cat_df_display, x='year_month', y='exp_amount', color='category', 
                        markers=True, text='text_label',
-                       title=f"월별 수출액 추이",
                        labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'category': '대분류'})
     fig_line.update_traces(textposition="top center")
     fig_line.update_layout(template="plotly_white", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
