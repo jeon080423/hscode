@@ -178,7 +178,11 @@ st.header(f"📊 주요 품목 포트폴리오 분석 ({last_month[:4]}.{last_mo
 st.caption("수출액 상위 30개 품목 기준 | X축: 수출액, Y축: 전월 대비 증감률, 버블 크기: 수출액 규모")
 
 # 차트 가독성을 위해 상위 30개 품목으로 제한
-growth_df_bubble = growth_df.head(30)
+growth_df_bubble = growth_df.head(30).copy()
+# 레이블 겹침 방지를 위해 상위 12개 품목에만 텍스트 표시
+growth_df_bubble['display_name'] = growth_df_bubble.apply(
+    lambda x: x['item_name'] if x.name in growth_df_bubble.index[:12] else "", axis=1
+)
 
 fig_bubble = px.scatter(growth_df_bubble, 
                         x='exp_amount_curr', 
@@ -186,16 +190,18 @@ fig_bubble = px.scatter(growth_df_bubble,
                         size='exp_amount_curr', 
                         color='category',
                         hover_name='item_name',
-                        text='item_name',
-                        size_max=60,
+                        text='display_name',
+                        size_max=45, # 버블 크기 약간 축소
                         labels={'exp_amount_curr': '당월 수출액 (백만 달러)', 'growth_rate': '증감률 (MoM %)', 'category': '대분류'},
-                        title="주요 품목별 수출 규모 vs 성장률 분석 (Top 30)")
+                        title="주요 품목별 수출 규모 vs 성장률 분석 (Top 30)",
+                        height=600) # 높이 확대
 
-fig_bubble.update_traces(textposition='top center')
+fig_bubble.update_traces(textposition='top center', textfont=dict(size=11))
 fig_bubble.update_layout(
     template="plotly_white",
-    xaxis=dict(showgrid=True, gridcolor='lightgray'),
-    yaxis=dict(showgrid=True, gridcolor='lightgray', zeroline=True, zerolinecolor='black'),
+    margin=dict(t=80, b=50, l=50, r=50), # 상단 마진 확대 (글씨 잘림 방지)
+    xaxis=dict(showgrid=True, gridcolor='lightgray', tickformat=","),
+    yaxis=dict(showgrid=True, gridcolor='lightgray', zeroline=True, zerolinecolor='black', ticksuffix="%"),
     showlegend=True
 )
 
