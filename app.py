@@ -141,18 +141,27 @@ with col2:
     fig_pie.update_layout(showlegend=False, template="plotly_white")
     st.plotly_chart(fig_pie, use_container_width=True)
 
-# (2) 중단: 개별 품목 당월 현황 (수출 상위 100개)
-st.header("📦 주요 품목 당월 현황")
-st.caption("비율은 전월 대비 증감률(MoM)입니다.")
+# (2) 중단: 개별 품목 당월 현황
 last_month = df_display['year_month'].max()
 prev_month = sorted(df_display['year_month'].unique())[-2] if len(df_display['year_month'].unique()) > 1 else last_month
+
+st.header(f"📦 주요 품목 ({last_month[:4]}.{last_month[4:]}) 현황")
+st.caption("비율은 전월 대비 증감률(MoM)입니다.")
+
+# 카테고리 필터 UI
+cat_options = ["전체"] + list(data_processor.ICT_CATEGORIES.keys())
+selected_cat = st.selectbox("품목군 필터", cat_options, index=0)
 
 curr_df = df_display[df_display['year_month'] == last_month]
 prev_df = df_display[df_display['year_month'] == prev_month]
 growth_df = processor.calculate_growth(curr_df, prev_df)
 
-# 수출액 기준 내림차순 정렬 및 상위 100개 선택
-growth_df = growth_df.sort_values('exp_amount_curr', ascending=False).head(100)
+# 필터링 적용
+if selected_cat != "전체":
+    growth_df = growth_df[growth_df['category'] == selected_cat]
+
+# 수출액 기준 내림차순 정렬 (모든 항목 표시)
+growth_df = growth_df.sort_values('exp_amount_curr', ascending=False)
 
 cols_per_row = 5
 cols = st.columns(cols_per_row)
@@ -160,7 +169,7 @@ for i, (index, row) in enumerate(growth_df.iterrows()):
     with cols[i % cols_per_row]:
         st.metric(
             label=f"{row['item_name']}",
-            value=f"{row['exp_amount_curr']:,}",
+            value=f"{row['exp_amount_curr']:,} MUSD",
             delta=f"{row['growth_rate']:.1f}%",
         )
 
