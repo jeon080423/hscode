@@ -173,22 +173,30 @@ for i, (index, row) in enumerate(growth_df.iterrows()):
             delta=f"{row['growth_rate']:.1f}%",
         )
 
-# (3) 하단: 품목별 누적 수출 그래프
-st.header("2026년 기준 품목별 누적 수출 추이")
-# 2026년 데이터 필터링
-df_2026 = df_display[df_display['year_month'].str.startswith('2026')]
-if df_2026.empty:
-    df_2026 = df_display
+# (3) 하단: ICT 품목 포트폴리오 분석 (Bubble Chart)
+st.header(f"📊 주요 품목 포트폴리오 분석 ({last_month[:4]}.{last_month[4:]})")
+st.caption("X축: 수출액, Y축: 전월 대비 증감률, 버블 크기: 수출액 규모")
 
-# 품목별 누적합 계산
-df_2026 = df_2026.sort_values(['item_name', 'year_month'])
-df_2026['cumulative_exp'] = df_2026.groupby('item_name')['exp_amount'].cumsum()
+fig_bubble = px.scatter(growth_df, 
+                        x='exp_amount_curr', 
+                        y='growth_rate',
+                        size='exp_amount_curr', 
+                        color='category',
+                        hover_name='item_name',
+                        text='item_name',
+                        size_max=60,
+                        labels={'exp_amount_curr': '당월 수출액 (백만 달러)', 'growth_rate': '증감률 (MoM %)', 'category': '대분류'},
+                        title="ICT 품목별 수출 규모 vs 성장률 분석")
 
-fig_cum = px.area(df_2026, x='year_month', y='cumulative_exp', color='item_name',
-                  title="2026년 품목별 누적 수출 실적 (Stacked Area)",
-                  labels={'cumulative_exp': '누적 수출액 (USD)', 'year_month': '기준년월', 'item_name': '품목명'})
-fig_cum.update_layout(template="plotly_white")
-st.plotly_chart(fig_cum, use_container_width=True)
+fig_bubble.update_traces(textposition='top center')
+fig_bubble.update_layout(
+    template="plotly_white",
+    xaxis=dict(showgrid=True, gridcolor='lightgray'),
+    yaxis=dict(showgrid=True, gridcolor='lightgray', zeroline=True, zerolinecolor='black'),
+    showlegend=True
+)
+
+st.plotly_chart(fig_bubble, use_container_width=True)
 
 # 서브 메뉴: 상세 분석 탭
 st.divider()
