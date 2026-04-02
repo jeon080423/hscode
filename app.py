@@ -12,26 +12,56 @@ st.set_page_config(page_title="관세청 ICT 품목 당월 수출 실적", layou
 # 스타일 설정
 st.markdown("""
 <style>
-    .main { background-color: #f8f9fa; }
-    /* 메트릭 박스 조밀하게 설정 */
-    div[data-testid="stMetric"] {
+    /* 커스텀 메트릭 카드 스타일 */
+    .metric-card {
         background-color: white;
-        padding: 5px 10px;
-        border-radius: 5px;
+        padding: 12px;
+        border-radius: 8px;
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         border: 1px solid #e5e7eb;
+        margin-bottom: 10px;
+        min-height: 120px;
     }
-    div[data-testid="stMetricLabel"] > div {
-        font-size: 0.8rem !important;
-        color: #4b5563 !important;
+    .metric-label {
+        font-size: 0.85rem;
+        color: #4b5563;
+        font-weight: 600;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
-    div[data-testid="stMetricValue"] > div {
-        font-size: 1.1rem !important;
-        font-weight: 700 !important;
+    .metric-value {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 10px;
     }
-    div[data-testid="stMetricDelta"] > div {
-        font-size: 0.8rem !important;
+    .delta-row {
+        display: flex;
+        justify-content: flex-start;
+        gap: 10px;
+        border-top: 1px solid #f3f4f6;
+        padding-top: 8px;
     }
+    .delta-box {
+        display: flex;
+        flex-direction: column;
+    }
+    .delta-tag {
+        font-size: 0.7rem;
+        color: #9ca3af;
+        margin-bottom: 1px;
+    }
+    .delta-val {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    .up { color: #059669; }
+    .down { color: #dc2626; }
+    .yoy-up { color: #2563eb; }
+    .yoy-down { color: #d97706; }
+
     h1, h2, h3 { color: #1e3a8a; }
 </style>
 """, unsafe_allow_html=True)
@@ -40,7 +70,7 @@ st.markdown("""
 client = api_client.CustomsAPIClient()
 processor = data_processor.DataProcessor()
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=60) # TTL을 낮추어 변경사항 즉시 반영 유도 (추후 필요시 3600으로 복구)
 def load_data(months=12):
     """
     최근 N개월 데이터를 로드합니다.
@@ -60,8 +90,8 @@ def load_data(months=12):
             'hs_code': [x[1] for x in items_list],
             'item_name': [x[0] for x in items_list],
             'exp_amount': [
-                # 연도별 성장성을 부여하기 위해 연도(d//100) 반영
-                (5000 if '반도체' in x[0] else 500) + (int(d)//100 - 2024)*200 + (int(d)%100)*10 + (hash(x[0])%1000)
+                # 연도별 성장성 및 품목별 다양성 부여
+                500 + (int(d)//100 - 2024)*200 + (int(d)%100)*10 + (hash(x[0])%2000)
                 for x in items_list
             ],
             'imp_amount': [100 + (hash(x[0])%500) for x in items_list],
@@ -119,24 +149,35 @@ with tab1:
     cat_df_full = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
     cat_df_display = cat_df_full[cat_df_full['year_month'].isin(display_months)].copy()
 
-    def get_yoy_label(row):
-        if row['year_month'] != last_month: return ""
-        yoy_data = cat_df_full[(cat_df_full['year_month'] == yoy_month_val) & (cat_df_full['category'] == row['category'])]
+    # 시인성 개선을 위한 카테고리 필터 추가
+    all_cats = sorted(cat_df_display['category'].unique())
+    selected_cats = st.multiselect("📈 출력 카테고리 선택", options=all_cats, default=all_cats, help="그래프에 표시할 카테고리를 선택하세요.")
+    
+    filtered_cat_df = cat_df_display[cat_df_display['category'].isin(selected_cats)].copy()
+
+    # YoY 계산을 데이터프레임에 미리 수행 (툴팁용)
+    def calculate_point_yoy(row):
+        yoy_val = (datetime.strptime(row['year_month'], "%Y%m") - timedelta(days=365)).strftime("%Y%m")
+        yoy_data = cat_df_full[(cat_df_full['year_month'] == yoy_val) & (cat_df_full['category'] == row['category'])]
         if not yoy_data.empty:
             growth = (row['exp_amount'] - yoy_data.iloc[0]['exp_amount']) / yoy_data.iloc[0]['exp_amount'] * 100
-            return f"{row['exp_amount']:,}\n({growth:+.1f}%)" 
-        return f"{row['exp_amount']:,}"
+            return f"{growth:+.1f}%"
+        return "N/A"
 
-    cat_df_display['text_label'] = cat_df_display.apply(get_yoy_label, axis=1)
+    filtered_cat_df['yoy_growth'] = filtered_cat_df.apply(calculate_point_yoy, axis=1)
 
     col1, col2 = st.columns([2, 1])
     with col1:
         st.subheader("월별 수출액 추이")
-        st.caption("( ) 내 비율은 전년 동월 대비 증감률(YoY)입니다.")
-        fig_line = px.line(cat_df_display, x='year_month', y='exp_amount', color='category', markers=True, text='text_label',
+        st.caption("그래프 숫자가 겹치는 문제를 해결하기 위해 텍스트 라벨을 툴팁으로 통합했습니다.")
+        fig_line = px.line(filtered_cat_df, x='year_month', y='exp_amount', color='category', markers=True,
+                           custom_data=['yoy_growth'],
                            labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'category': '대분류'})
-        fig_line.update_traces(textposition="top center")
-        fig_line.update_layout(template="plotly_white", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        fig_line.update_traces(
+            hovertemplate="<b>%{fullData.name}</b><br>기준년월: %{x}<br>수출액: %{y:,.0f} USD<br>전년비(YoY): %{customdata[0]}<extra></extra>"
+        )
+        fig_line.update_layout(template="plotly_white", hovermode="x unified", 
+                               legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig_line, use_container_width=True)
 
     with col2:
@@ -186,11 +227,32 @@ with tab2:
 
     display_growth_df = display_growth_df.sort_values('exp_amount_curr', ascending=False)
 
-    cols_per_row = 5
+    cols_per_row = 4
     cols = st.columns(cols_per_row)
     for i, (index, row) in enumerate(display_growth_df.iterrows()):
         with cols[i % cols_per_row]:
-            st.metric(label=f"{row['item_name']}", value=f"{row['exp_amount_curr']:,} 백만 달러", delta=f"{row['growth_rate']:.1f}%")
+            # 증감 아이콘 및 클래스 결정
+            mom_icon = "↑" if row['growth_rate'] >= 0 else "↓"
+            mom_class = "up" if row['growth_rate'] >= 0 else "down"
+            yoy_icon = "↑" if row['growth_rate_yoy'] >= 0 else "↓"
+            yoy_class = "yoy-up" if row['growth_rate_yoy'] >= 0 else "yoy-down"
+
+            st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label" title="{row['item_name']}">{row['item_name']}</div>
+                    <div class="metric-value">{row['exp_amount_curr']:,} 백만 달러</div>
+                    <div class="delta-row">
+                        <div class="delta-box">
+                            <div class="delta-tag">전월비</div>
+                            <div class="delta-val {mom_class}">{mom_icon} {abs(row['growth_rate']):.1f}%</div>
+                        </div>
+                        <div class="delta-box">
+                            <div class="delta-tag">전년비</div>
+                            <div class="delta-val {yoy_class}">{yoy_icon} {abs(row['growth_rate_yoy']):.1f}%</div>
+                        </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
 
 with tab3:
     st.header("📋 품목별 상세 데이터")
