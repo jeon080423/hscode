@@ -110,6 +110,23 @@ df_display = df[df['year_month'].isin(display_months)]
 df_service = processor.get_service_trade_data(all_months)
 df_service_display = df_service[df_service['year_month'].isin(display_months)]
 
+# 서비스 무역 데이터 증감 계산 (최근월 기준)
+last_service_month = df_service['year_month'].max()
+prev_service_month = sorted(df_service['year_month'].unique())[-2] if len(df_service['year_month'].unique()) > 1 else last_service_month
+yoy_service_month = (datetime.strptime(last_service_month, "%Y%m") - timedelta(days=365)).strftime("%Y%m")
+
+df_service_curr = df_service[df_service['year_month'] == last_service_month]
+df_service_prev = df_service[df_service['year_month'] == prev_service_month]
+df_service_yoy = df_service[df_service['year_month'] == yoy_service_month]
+
+# 항목별 증감률 병합
+service_growth = pd.merge(df_service_curr, df_service_prev[['service_name', 'exp_amount']], on='service_name', suffixes=('', '_prev'))
+service_growth = pd.merge(service_growth, df_service_yoy[['service_name', 'exp_amount']], on='service_name', suffixes=('', '_yoy'))
+
+service_growth['mom_rate'] = (service_growth['exp_amount'] - service_growth['exp_amount_prev']) / service_growth['exp_amount_prev'] * 100
+service_growth['yoy_rate'] = (service_growth['exp_amount'] - service_growth['exp_amount_yoy']) / service_growth['exp_amount_yoy'] * 100
+service_growth['trade_balance'] = service_growth['exp_amount'] - service_growth['imp_amount']
+
 # 메인 헤더 (2열: 좌측 타이틀 / 우측 과업명+CI)
 hdr_left, hdr_right = st.columns([2, 1])
 
@@ -480,7 +497,7 @@ with tab3:
 
 
 # ──────────────────────────────────────────────
-# TAB 4: 서비스 무역 통계 (독립 탭)
+# TAB 4: 월별 서비스 무역 통계 (독립 탭)
 # ──────────────────────────────────────────────
 with tab4:
     st.header("💻 월별 서비스 무역(SW·ICT 서비스) 현황 (출처: 한국은행)")
@@ -507,11 +524,42 @@ with tab4:
 
     st.divider()
 
-    # 서비스 무역 표 형태의 상세 데이터 제공
-    st.subheader(f"서비스 무역 주요 항목별 당월 상세 실적 ({last_month} 기준)")
-    st.dataframe(
-        last_month_sw_pie[['service_name', 'exp_amount', 'imp_amount']].rename(
-            columns={'service_name': '항목명', 'exp_amount': '수출액(USD)', 'imp_amount': '수입액(USD)'}
-        ),
-        use_container_width=True, hide_index=True
-    )
+    # 서비스 무역 항목별 상세 카드
+    st.subheader(f"💻 항목별 당월 상세 실적 및 증감 ({last_month} 기준)")
+    
+    s_items = service_growth.to_dict('records')
+    cols_s = st.columns(len(s_items))
+    
+    for i, s_item in enumerate(s_items):
+        with cols_s[i]:
+            with st.container(border=True):
+                # 색상 배지 설정
+                m_color = "#059669" if s_item['mom_rate'] >= 0 else "#dc2626"
+                y_color = "#2563eb" if s_item['yoy_rate'] >= 0 else "#d97706"
+                bal_color = "#0f172a" if s_item['trade_balance'] >= 0 else "#dc2626"
+                
+                st.markdown(f"""
+                    <div style="padding:2px 0;">
+                        <div style="font-size:0.95rem; font-weight:700; color:#334155; margin-bottom:8px;">
+                            {s_item['service_name']}
+                        </div>
+                        <div style="font-size:1.2rem; font-weight:800; color:#0f172a; margin-bottom:4px;">
+                            ${s_item['exp_amount']:,}
+                            <span style="font-size:0.75rem; font-weight:400; color:#64748b;">(수출)</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">
+                            ${s_item['imp_amount']:,} <span style="font-size:0.7rem;">(수입)</span> | 
+                            <span style="color:{bal_color}; font-weight:600;">Balance: ${s_item['trade_balance']:+,}</span>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <span style="background:{"#f0fdf4" if s_item['mom_rate'] >= 0 else "#fef2f2"}; color:{m_color};
+                                         font-size:0.7rem; font-weight:700; border-radius:3px; padding:2px 6px;">
+                                {"▲" if s_item['mom_rate'] >= 0 else "▼"} {abs(s_item['mom_rate']):.1f}% MoM
+                            </span>
+                            <span style="background:{"#eff6ff" if s_item['yoy_rate'] >= 0 else "#fffbeb"}; color:{y_color};
+                                         font-size:0.7rem; font-weight:700; border-radius:3px; padding:2px 6px;">
+                                {"▲" if s_item['yoy_rate'] >= 0 else "▼"} {abs(s_item['yoy_rate']):.1f}% YoY
+                            </span>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
