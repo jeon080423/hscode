@@ -5,6 +5,8 @@ ICT_CATEGORIES = {
     "전자부품": ["111", "112", "113", "114", "115", "116", "117", "119"],
     "컴퓨터 및 주변기기": ["121", "122"],
     "정보통신응용기반기기": ["151", "152", "153", "154", "155", "159"],
+    "방송장비": ["131", "132", "133"],
+    "통신장비": ["141", "142", "143", "149"],
 }
 
 # 세부 품목 확장 (업로드된 분류 기준 적용)
@@ -74,6 +76,20 @@ ICT_DETAIL_ITEMS = {
     "PDA 및 소형 컴퓨터": "12113000",
     "프린터 부품": "12222000",
     "난방 및 전열기기 부품": "15133000",
+    # 방송장비
+    "TV 수상기": "13110000",
+    "디지털 카메라": "13120000",
+    "방송용 카메라": "13130000",
+    "영상처리기기": "13210000",
+    "방송장비 부품": "13300000",
+    # 통신장비
+    "휴대폰": "14110000",
+    "유선전화기": "14120000",
+    "기지국 장비": "14130000",
+    "네트워크 장비": "14210000",
+    "광통신 장비": "14220000",
+    "위성통신 장비": "14310000",
+    "기타 통신장비": "14900000",
 }
 
 
@@ -87,7 +103,7 @@ class DataProcessor:
         """
         if df is None or df.empty:
             return df
-        
+
         def get_category(hs):
             hs_str = str(hs).replace('.', '')
             for cat, codes in ICT_CATEGORIES.items():
@@ -104,13 +120,13 @@ class DataProcessor:
         """
         if current_df is None or prev_df is None:
             return current_df
-        
+
         # 품목별로 정렬 및 병합
-        merged = pd.merge(current_df, prev_df[['hs_code', 'item_name', 'exp_amount']], 
+        merged = pd.merge(current_df, prev_df[['hs_code', 'item_name', 'exp_amount']],
                           on=['hs_code', 'item_name'], suffixes=('_curr', '_prev'), how='left')
         merged['growth_amount'] = merged['exp_amount_curr'] - merged['exp_amount_prev'].fillna(0)
         merged['growth_rate'] = (merged['growth_amount'] / merged['exp_amount_prev'] * 100).fillna(0)
-        
+
         return merged
 
     def get_time_series_data(self, data_list):
@@ -120,6 +136,6 @@ class DataProcessor:
         """
         if not data_list:
             return pd.DataFrame()
-        
+
         combined = pd.concat(data_list, ignore_index=True)
         return combined

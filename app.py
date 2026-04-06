@@ -12,7 +12,6 @@ st.set_page_config(page_title="관세청 ICT 품목 당월 수출 실적", layou
 # 스타일 설정
 st.markdown("""
 <style>
-    /* 커스텀 메트릭 카드 스타일 */
     .metric-card {
         background-color: white;
         padding: 12px;
@@ -22,187 +21,26 @@ st.markdown("""
         margin-bottom: 10px;
         min-height: 120px;
     }
-    .metric-label {
-        font-size: 0.85rem;
-        color: #4b5563;
-        font-weight: 600;
-        margin-bottom: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .metric-value {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #111827;
-        margin-bottom: 10px;
-    }
-    .delta-row {
-        display: flex;
-        justify-content: flex-start;
-        gap: 10px;
-        border-top: 1px solid #f3f4f6;
-        padding-top: 8px;
-    }
-    .delta-box {
-        display: flex;
-        flex-direction: column;
-    }
-    .delta-tag {
-        font-size: 0.7rem;
-        color: #9ca3af;
-        margin-bottom: 1px;
-    }
-    .delta-val {
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
+    .metric-label { font-size: 0.85rem; color: #4b5563; font-weight: 600; margin-bottom: 4px; }
+    .metric-value { font-size: 1.15rem; font-weight: 700; color: #111827; margin-bottom: 10px; }
+    .delta-row { display: flex; justify-content: flex-start; gap: 10px; border-top: 1px solid #f3f4f6; padding-top: 8px; }
+    .delta-box { display: flex; flex-direction: column; }
+    .delta-tag { font-size: 0.7rem; color: #9ca3af; margin-bottom: 1px; }
+    .delta-val { font-size: 0.85rem; font-weight: 600; }
     .up { color: #059669; }
     .down { color: #dc2626; }
     .yoy-up { color: #2563eb; }
     .yoy-down { color: #d97706; }
-
-    /* 신규 리스트 스타일 (화이트 배경 프리미엄 디자인) */
-    .item-list-container {
-        margin-top: 20px;
-    }
-    .category-card {
-        background-color: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 25px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        min-height: 450px;
-        display: flex;
-        flex-direction: column;
-    }
-    .category-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        border-bottom: 2px solid #f1f5f9;
-        padding-bottom: 12px;
-    }
-    .category-title {
-        font-size: 1.1rem;
-        font-weight: 800;
-        color: #1e3a8a;
-    }
-    .category-subtitle {
-        font-size: 0.8rem;
-        color: #64748b;
-        font-weight: 500;
-    }
-    .item-row {
-        display: flex;
-        align-items: center;
-        background-color: white;
-        padding: 12px 0;
-        border-bottom: 1px solid #f1f5f9;
-        transition: all 0.2s ease;
-        gap: 15px;
-    }
-    .item-row:hover {
-        background-color: #f8fafc;
-    }
-    .status-dot-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 10px;
-    }
-    .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-    }
-    .dot-red { background-color: #ef4444; }
-    .dot-yellow { background-color: #f59e0b; }
-    .dot-orange { background-color: #f97316; }
-    .dot-green { background-color: #10b981; }
-
-    .item-info {
-        flex: 1.5;
-        min-width: 100px;
-    }
-    .item-name {
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: #334155;
-        margin-bottom: 1px;
-    }
-    .item-hs-code {
-        font-size: 0.7rem;
-        color: #94a3b8;
-    }
-    .indicator-box {
-        flex: 0.4;
-        display: flex;
-        justify-content: center;
-    }
-    .sparkline-box {
-        flex: 1.2;
-        height: 35px;
-    }
-    .metric-set {
-        flex: 1;
-        text-align: right;
-    }
-    .metric-main-val {
-        font-size: 1rem;
-        font-weight: 800;
-        color: #0f172a;
-    }
-    .metric-sub-val {
-        font-size: 0.75rem;
-        color: #64748b;
-    }
-    
-    .more-button-container {
-        margin-top: auto;
-        padding-top: 15px;
-        text-align: center;
-    }
-    .more-button {
-        background-color: #f1f5f9;
-        color: #475569;
-        border: none;
-        border-radius: 6px;
-        padding: 8px 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-    .more-button:hover {
-        background-color: #e2e8f0;
-    }
-
-    /* 레인지 인디케이터 아이콘 커스텀 (CSS 드로잉) */
     .range-indicator {
-        position: relative;
-        width: 25px;
-        height: 14px;
-        border-left: 2px solid #e2e8f0;
-        border-right: 2px solid #e2e8f0;
-        display: flex;
-        align-items: center;
+        position: relative; width: 25px; height: 14px;
+        border-left: 2px solid #e2e8f0; border-right: 2px solid #e2e8f0;
+        display: flex; align-items: center;
     }
-    .range-line {
-        width: 100%;
-        height: 1px;
-        background-color: #e2e8f0;
-    }
+    .range-line { width: 100%; height: 1px; background-color: #e2e8f0; }
     .range-dot {
-        position: absolute;
-        width: 10px;
-        height: 5px;
-        background-color: #ef4444;
-        border-radius: 1px;
+        position: absolute; width: 10px; height: 5px;
+        background-color: #ef4444; border-radius: 1px;
     }
-
     h1, h2, h3 { color: #1e3a8a; }
 </style>
 """, unsafe_allow_html=True)
@@ -213,21 +51,17 @@ processor = data_processor.DataProcessor()
 
 @st.cache_data(ttl=60)
 def load_data(months=12):
-    """
-    최근 N개월 데이터를 로드합니다.
-    """
+    """최근 N개월 데이터를 로드합니다."""
     end_date = datetime.now()
     dates = [(end_date - timedelta(days=30*i)).strftime("%Y%m") for i in range(months)]
     dates.sort()
-    
+
     all_data = []
-    # 데이터 프로세서에서 정의한 상세 품목 리스트 사용 (약 100개)
     items_list = list(data_processor.ICT_DETAIL_ITEMS.items())
-    
+
     for d in dates:
         year = int(d) // 100
         month = int(d) % 100
-        # 연도별 성장 트렌드 반영 (더 넓은 기간)
         growth_factor = (year - 2015) * 150
         df_month = pd.DataFrame({
             'year_month': d,
@@ -242,7 +76,7 @@ def load_data(months=12):
         })
         df_month['trade_balance'] = df_month['exp_amount'] - df_month['imp_amount']
         all_data.append(df_month)
-    
+
     combined = pd.concat(all_data, ignore_index=True)
     combined = processor.categorize_data(combined)
     return combined
@@ -255,12 +89,11 @@ n_months = months_map[period]
 
 # 데이터 로드 (YoY 계산 및 10년 성장률 분석을 위해 132개월분 로드)
 df = load_data(132)
-# 시각화용 데이터는 사용자가 선택한 개월수만큼 슬라이싱
 all_months = sorted(df['year_month'].unique())
 display_months = all_months[-n_months:]
 df_display = df[df['year_month'].isin(display_months)]
 
-# 메인 헤더 (제목 수정: 관세청 ICT 품목 당월 수출 실적)
+# 메인 헤더
 st.title("관세청 ICT 품목 당월 수출 실적")
 st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다.")
 st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)")
@@ -281,12 +114,15 @@ growth_df_yoy = processor.calculate_growth(curr_df, yoy_df_source)
 growth_df = growth_df_mom.copy()
 growth_df['growth_rate_yoy'] = growth_df_yoy['growth_rate']
 
-# 탭 메뉴 구성 (순서: 주요 품목 현황 → 품목별 상세 데이터 → 월별 수출액 추이)
+# 탭 메뉴 구성 (주요 품목 현황 → 품목별 상세 데이터 → 월별 수출액 추이)
 tab1, tab2, tab3 = st.tabs(["📦 주요 품목 현황", "📋 품목별 상세 데이터", "📊 월별 수출액 추이"])
 
+# ──────────────────────────────────────────────
+# TAB 1: 주요 품목 현황 (5열 카드 그리드)
+# ──────────────────────────────────────────────
 with tab1:
     st.header(f"📦 주요 품목 ({last_month[:4]}.{last_month[4:]}) 현황")
-    st.caption("비율은 전월 대비 증감률(MoM)입니다.")
+    st.caption("MoM: 전월 대비 증감률 / YoY: 전년 동월 대비 증감률")
 
     # 카테고리 필터
     cat_options = ["전체"] + list(data_processor.ICT_CATEGORIES.keys())
@@ -296,7 +132,12 @@ with tab1:
     if selected_cat != "전체":
         display_growth_df = display_growth_df[display_growth_df['category'] == selected_cat]
 
-    display_growth_df = display_growth_df.reset_index(drop=True)
+    display_growth_df = display_growth_df.sort_values('exp_amount_curr', ascending=False).reset_index(drop=True)
+
+    # 12개월 스파크라인용 고정 데이터
+    last_12m = sorted(df['year_month'].unique())[-12:]
+    df_spark_base = df[df['year_month'].isin(last_12m)]
+
     items = list(display_growth_df.iterrows())
     COLS = 5
 
@@ -306,89 +147,122 @@ with tab1:
 
         for col_idx, (_, row) in enumerate(row_items):
             idx_pos = row_start + col_idx
-            # 성장률 색상
-            if row['growth_rate'] >= 5:
-                rate_color = "#059669"
-                rate_bg = "#f0fdf4"
-                arrow = "▲"
-            elif row['growth_rate'] >= 0:
-                rate_color = "#10b981"
-                rate_bg = "#f0fdf4"
-                arrow = "▲"
+
+            # MoM 색상
+            if row['growth_rate'] >= 0:
+                mom_color = "#059669"; mom_bg = "#f0fdf4"; mom_arrow = "▲"
             else:
-                rate_color = "#dc2626"
-                rate_bg = "#fef2f2"
-                arrow = "▼"
+                mom_color = "#dc2626"; mom_bg = "#fef2f2"; mom_arrow = "▼"
+
+            # YoY 색상
+            yoy_val = row.get('growth_rate_yoy', 0)
+            if pd.isna(yoy_val):
+                yoy_val = 0.0
+            if yoy_val >= 0:
+                yoy_color = "#2563eb"; yoy_bg = "#eff6ff"; yoy_arrow = "▲"
+            else:
+                yoy_color = "#d97706"; yoy_bg = "#fffbeb"; yoy_arrow = "▼"
 
             with cols[col_idx]:
-                # 스파크라인
-                item_history = df_display[df_display['item_name'] == row['item_name']].sort_values('year_month')
-                fig_spark = px.line(item_history, x='year_month', y='exp_amount', render_mode='svg')
-                fig_spark.update_traces(line_color="#3b82f6", line_width=1.5)
-                fig_spark.update_layout(
-                    showlegend=False,
-                    margin=dict(l=0, r=0, t=0, b=0),
-                    height=50,
-                    xaxis_visible=False,
-                    yaxis_visible=False,
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    hovermode=False
-                )
-
+                # ── 카드 상단 (테두리 하단 없음) ──
                 st.markdown(f"""
                     <div style="
-                        background: white;
-                        border: 1px solid #e2e8f0;
-                        border-radius: 10px;
-                        padding: 12px 14px 8px 14px;
-                        margin-bottom: 10px;
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-                        min-height: 130px;
+                        background:white;
+                        border:1px solid #e2e8f0;
+                        border-bottom:none;
+                        border-radius:10px 10px 0 0;
+                        padding:12px 14px 10px 14px;
+                        box-shadow:0 1px 3px rgba(0,0,0,0.04);
                     ">
                         <div style="font-size:0.78rem; font-weight:700; color:#334155;
                                     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
                                     margin-bottom:2px;" title="{row['item_name']}">{row['item_name']}</div>
-                        <div style="font-size:0.65rem; color:#94a3b8; margin-bottom:6px;">{row['hs_code']}</div>
-                        <div style="font-size:0.9rem; font-weight:800; color:#0f172a;">
+                        <div style="font-size:0.62rem; color:#94a3b8; margin-bottom:7px;">{row['hs_code']}</div>
+                        <div style="font-size:0.92rem; font-weight:800; color:#0f172a; margin-bottom:6px;">
                             {int(round(row['exp_amount_curr'])):,}
-                            <span style="font-size:0.65rem; font-weight:400; color:#64748b;">백만</span>
+                            <span style="font-size:0.63rem; font-weight:400; color:#64748b;">백만</span>
                         </div>
-                        <div style="
-                            display:inline-block;
-                            background:{rate_bg};
-                            color:{rate_color};
-                            font-size:0.75rem;
-                            font-weight:700;
-                            border-radius:4px;
-                            padding:1px 6px;
-                            margin-top:4px;
-                        ">{arrow} {row['growth_rate']:+.1f}% MoM</div>
+                        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                            <span style="background:{mom_bg}; color:{mom_color};
+                                         font-size:0.68rem; font-weight:700;
+                                         border-radius:4px; padding:2px 6px;">
+                                {mom_arrow} {row['growth_rate']:+.1f}% MoM
+                            </span>
+                            <span style="background:{yoy_bg}; color:{yoy_color};
+                                         font-size:0.68rem; font-weight:700;
+                                         border-radius:4px; padding:2px 6px;">
+                                {yoy_arrow} {yoy_val:+.1f}% YoY
+                            </span>
+                        </div>
                     </div>
+                """, unsafe_allow_html=True)
+
+                # ── 카드 내부 스파크라인 (12개월 고정) ──
+                item_history = df_spark_base[
+                    df_spark_base['item_name'] == row['item_name']
+                ].sort_values('year_month')
+
+                fig_spark = px.line(item_history, x='year_month', y='exp_amount', render_mode='svg')
+                fig_spark.update_traces(line_color="#3b82f6", line_width=1.5)
+                fig_spark.update_layout(
+                    showlegend=False,
+                    margin=dict(l=6, r=6, t=2, b=2),
+                    height=55,
+                    xaxis_visible=False,
+                    yaxis_visible=False,
+                    paper_bgcolor="white",
+                    plot_bgcolor="white",
+                    hovermode=False
+                )
+
+                # 스파크라인을 카드 안에 넣는 중간 구분자
+                st.markdown("""
+                    <div style="background:white; border-left:1px solid #e2e8f0;
+                                border-right:1px solid #e2e8f0;">
                 """, unsafe_allow_html=True)
                 st.plotly_chart(fig_spark, use_container_width=True,
                                 config={'displayModeBar': False},
                                 key=f"spark_{idx_pos}")
+                st.markdown("</div>", unsafe_allow_html=True)
 
+                # ── 카드 하단 캡 ──
+                st.markdown("""
+                    <div style="
+                        background:white;
+                        border:1px solid #e2e8f0;
+                        border-top:none;
+                        border-radius:0 0 10px 10px;
+                        height:10px;
+                        margin-bottom:12px;
+                        box-shadow:0 1px 3px rgba(0,0,0,0.04);
+                    "></div>
+                """, unsafe_allow_html=True)
 
+# ──────────────────────────────────────────────
+# TAB 2: 품목별 상세 데이터
+# ──────────────────────────────────────────────
 with tab2:
     st.header("📋 품목별 상세 데이터")
-    st.dataframe(growth_df[['hs_code', 'item_name', 'exp_amount_prev', 'exp_amount_curr', 'growth_amount', 'growth_rate']],
-                 use_container_width=True, hide_index=True)
-
+    st.dataframe(
+        growth_df[['hs_code', 'item_name', 'category', 'exp_amount_prev', 'exp_amount_curr', 'growth_amount', 'growth_rate', 'growth_rate_yoy']],
+        use_container_width=True, hide_index=True
+    )
     csv = growth_df.to_csv(index=False).encode('utf-8-sig')
     st.download_button("📥 상세 데이터 CSV 다운로드", data=csv, file_name=f"ict_export_{last_month}.csv", mime="text/csv")
 
+# ──────────────────────────────────────────────
+# TAB 3: 월별 수출액 추이 + 10년 성장률
+# ──────────────────────────────────────────────
 with tab3:
-    # (1) 상단: ICT 대분류 기준 선그래프 및 파이차트
     st.header("📈 ICT 대분류별 수출 현황")
 
-    # 전체 기간 카테고리별 집계
+    # 카테고리별 데이터 집계
     cat_df_full = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
     cat_df_display = cat_df_full[cat_df_full['year_month'].isin(display_months)].copy()
 
     all_cats = sorted(cat_df_display['category'].unique())
-    selected_cats = st.multiselect("📈 출력 카테고리 선택", options=all_cats, default=all_cats, help="그래프에 표시할 카테고리를 선택하세요.")
+    selected_cats = st.multiselect("📈 출력 카테고리 선택", options=all_cats, default=all_cats,
+                                   help="그래프에 표시할 카테고리를 선택하세요.")
 
     filtered_cat_df = cat_df_display[cat_df_display['category'].isin(selected_cats)].copy()
 
@@ -425,75 +299,89 @@ with tab3:
 
     st.divider()
 
-    # (2) 대분류별 최근 10년 연간 성장률 막대그래프
+    # 대분류별 최근 10년 연간 성장률 막대그래프
     st.header("📊 ICT 대분류별 최근 10년 연간 성장률")
-    st.caption("각 대분류의 연간(YoY) 수출 성장률을 최근 10년 기준으로 표시합니다.")
+    st.caption("각 대분류의 연간(YoY) 수출 성장률을 최근 10년 기준으로 표시합니다. (12개월 완성 연도만 포함)")
 
-    # 연간 집계: year_month에서 연도 추출 후 합산
     cat_df_full_copy = cat_df_full.copy()
     cat_df_full_copy['year'] = cat_df_full_copy['year_month'].str[:4].astype(int)
 
-    # 연도별 가용 월 수 집계 (12개월이 모두 있는 연도만 유효 연도로 인정)
+    # 연도별 가용 월 수 집계 (12개월 완성 연도만)
     months_per_year_cat = cat_df_full_copy.groupby(['year', 'category'])['year_month'].nunique().reset_index()
     months_per_year_cat.columns = ['year', 'category', 'month_count']
 
     annual_df = cat_df_full_copy.groupby(['year', 'category'])['exp_amount'].sum().reset_index()
     annual_df = annual_df.merge(months_per_year_cat, on=['year', 'category'])
-
-    # 12개월 데이터가 완성된 연도만 사용 (부분 연도 제외)
     annual_df_full = annual_df[annual_df['month_count'] == 12].copy()
 
-    # 완성 연도 목록에서 최근 10년 선택
     complete_years = sorted(annual_df_full['year'].unique())
     recent_10_years = complete_years[-10:] if len(complete_years) >= 10 else complete_years
 
-    # 성장률 계산: 완성 연도 전체 기준으로 shift → 이전 연도 대비 비교 정확
     annual_10yr = annual_df_full.sort_values(['category', 'year']).copy()
     annual_10yr['prev_exp'] = annual_10yr.groupby('category')['exp_amount'].shift(1)
     annual_10yr['growth_rate_yoy'] = (
         (annual_10yr['exp_amount'] - annual_10yr['prev_exp']) / annual_10yr['prev_exp'] * 100
     ).round(1)
     annual_10yr = annual_10yr.dropna(subset=['growth_rate_yoy'])
-
-    # 최근 10개 완성 연도만 필터링
     annual_10yr = annual_10yr[annual_10yr['year'].isin(recent_10_years)]
 
-    # 대분류 3개 각각 막대그래프
+    # 대분류별 막대그래프 (5개 대분류 → 한 줄에 3개 + 2개)
     main_categories = list(data_processor.ICT_CATEGORIES.keys())
-    chart_colors = ['#3b82f6', '#10b981', '#f59e0b']
+    chart_colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
 
-    bar_cols = st.columns(3)
-    for i, (cat, color) in enumerate(zip(main_categories, chart_colors)):
+    # 첫 번째 행: 3개
+    bar_cols1 = st.columns(3)
+    for i in range(min(3, len(main_categories))):
+        cat = main_categories[i]
+        color = chart_colors[i]
         cat_annual = annual_10yr[annual_10yr['category'] == cat].copy()
-        with bar_cols[i]:
+        with bar_cols1[i]:
             if cat_annual.empty:
                 st.info(f"{cat}: 데이터 없음")
             else:
-                fig_bar = go.Figure(
-                    go.Bar(
-                        x=cat_annual['year'].astype(str),
-                        y=cat_annual['growth_rate_yoy'],
-                        marker_color=[
-                            color if v >= 0 else '#ef4444'
-                            for v in cat_annual['growth_rate_yoy']
-                        ],
-                        text=[f"{v:+.1f}%" for v in cat_annual['growth_rate_yoy']],
-                        textposition='outside',
-                        hovertemplate="%{x}년<br>성장률: %{y:+.1f}%<extra></extra>"
-                    )
-                )
+                fig_bar = go.Figure(go.Bar(
+                    x=cat_annual['year'].astype(str),
+                    y=cat_annual['growth_rate_yoy'],
+                    marker_color=[color if v >= 0 else '#ef4444' for v in cat_annual['growth_rate_yoy']],
+                    text=[f"{v:+.1f}%" for v in cat_annual['growth_rate_yoy']],
+                    textposition='outside',
+                    hovertemplate="%{x}년<br>성장률: %{y:+.1f}%<extra></extra>"
+                ))
                 fig_bar.update_layout(
-                    title=dict(text=cat, font=dict(size=14, color='#1e3a8a'), x=0.5),
-                    template="plotly_white",
-                    height=350,
-                    margin=dict(t=50, b=40, l=20, r=20),
-                    yaxis=dict(
-                        ticksuffix="%",
-                        zeroline=True,
-                        zerolinecolor='#94a3b8',
-                        gridcolor='#f1f5f9'
-                    ),
+                    title=dict(text=cat, font=dict(size=13, color='#1e3a8a'), x=0.5),
+                    template="plotly_white", height=320,
+                    margin=dict(t=45, b=35, l=15, r=15),
+                    yaxis=dict(ticksuffix="%", zeroline=True, zerolinecolor='#94a3b8', gridcolor='#f1f5f9'),
                     xaxis=dict(tickangle=-45),
                     showlegend=False
                 )
                 st.plotly_chart(fig_bar, use_container_width=True)
+
+    # 두 번째 행: 나머지
+    if len(main_categories) > 3:
+        remaining = main_categories[3:]
+        bar_cols2 = st.columns(len(remaining))
+        for j, cat in enumerate(remaining):
+            color = chart_colors[3 + j]
+            cat_annual = annual_10yr[annual_10yr['category'] == cat].copy()
+            with bar_cols2[j]:
+                if cat_annual.empty:
+                    st.info(f"{cat}: 데이터 없음")
+                else:
+                    fig_bar = go.Figure(go.Bar(
+                        x=cat_annual['year'].astype(str),
+                        y=cat_annual['growth_rate_yoy'],
+                        marker_color=[color if v >= 0 else '#ef4444' for v in cat_annual['growth_rate_yoy']],
+                        text=[f"{v:+.1f}%" for v in cat_annual['growth_rate_yoy']],
+                        textposition='outside',
+                        hovertemplate="%{x}년<br>성장률: %{y:+.1f}%<extra></extra>"
+                    ))
+                    fig_bar.update_layout(
+                        title=dict(text=cat, font=dict(size=13, color='#1e3a8a'), x=0.5),
+                        template="plotly_white", height=320,
+                        margin=dict(t=45, b=35, l=15, r=15),
+                        yaxis=dict(ticksuffix="%", zeroline=True, zerolinecolor='#94a3b8', gridcolor='#f1f5f9'),
+                        xaxis=dict(tickangle=-45),
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig_bar, use_container_width=True)
