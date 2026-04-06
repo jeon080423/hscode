@@ -125,12 +125,9 @@ with hdr_right:
 
     st.markdown(f"""
         <div style="
-            display:flex; flex-direction:column; align-items:flex-end;
-            gap:10px; padding-top:10px;
+            display:flex; flex-direction:row; align-items:center; justify-content:flex-end;
+            gap:15px; padding-top:10px;
         ">
-            <div style="display:flex;align-items:center;gap:8px;">
-                {_logo_html}
-            </div>
             <div style="
                 background: linear-gradient(135deg,#2d4090,#1a2d6d);
                 border-radius:8px; padding:12px 24px;
@@ -140,6 +137,9 @@ with hdr_right:
                 <div style="font-size:1rem;font-weight:800;color:white;line-height:1.2;">
                     2026년 ICT통계조사 실사 용역
                 </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                {_logo_html}
             </div>
         </div>
     """, unsafe_allow_html=True)
