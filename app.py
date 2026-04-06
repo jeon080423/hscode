@@ -111,7 +111,6 @@ hdr_left, hdr_right = st.columns([2, 1])
 
 with hdr_left:
     st.title("관세청 ICT 품목 당월 수출 실적")
-    st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)")
 
 with hdr_right:
     # 로고 일기 (base64)
@@ -249,23 +248,23 @@ with tab1:
                     with sub_info:
                         st.markdown(f"""
                             <div style="padding:2px 0 4px 0;">
-                                <div style="font-size:0.75rem; font-weight:700; color:#334155;
+                                <div style="font-size:0.95rem; font-weight:700; color:#334155;
                                             white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-                                            margin-bottom:1px;" title="{row['item_name']}">{row['item_name']}</div>
-                                <div style="font-size:0.6rem; color:#94a3b8; margin-bottom:5px;">{row['hs_code']}</div>
-                                <div style="font-size:0.88rem; font-weight:800; color:#0f172a; margin-bottom:5px;">
+                                            margin-bottom:2px;" title="{row['item_name']}">{row['item_name']}</div>
+                                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:8px;">{row['hs_code']}</div>
+                                <div style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:8px;">
                                     {int(round(row['exp_amount_curr'])):,}
-                                    <span style="font-size:0.6rem; font-weight:400; color:#64748b;">백만</span>
+                                    <span style="font-size:0.75rem; font-weight:400; color:#64748b;">백만</span>
                                 </div>
-                                <div style="display:flex; gap:3px; flex-wrap:wrap;">
+                                <div style="display:flex; gap:4px; flex-wrap:wrap;">
                                     <span style="background:{mom_bg}; color:{mom_color};
-                                                 font-size:0.62rem; font-weight:700;
-                                                 border-radius:3px; padding:1px 5px;">
+                                                 font-size:0.75rem; font-weight:700;
+                                                 border-radius:3px; padding:2px 6px;">
                                         {mom_arrow} {row['growth_rate']:+.1f}% MoM
                                     </span>
                                     <span style="background:{yoy_bg}; color:{yoy_color};
-                                                 font-size:0.62rem; font-weight:700;
-                                                 border-radius:3px; padding:1px 5px;">
+                                                 font-size:0.75rem; font-weight:700;
+                                                 border-radius:3px; padding:2px 6px;">
                                         {yoy_arrow} {yoy_val:+.1f}% YoY
                                     </span>
                                 </div>
@@ -305,23 +304,23 @@ with tab1:
                                 marker=dict(color='#1d4ed8', size=5),
                                 text=[f"{int(round(last_y)):,}"],
                                 textposition='middle right',
-                                textfont=dict(size=7, color='#1d4ed8'),
+                                textfont=dict(size=9, color='#1d4ed8'),
                                 showlegend=False,
                             ))
                         fig_spark.update_layout(
                             showlegend=False,
                             title=dict(
                                 text='누적 수출액',
-                                font=dict(size=8, color='#64748b'),
+                                font=dict(size=10, color='#64748b'),
                                 x=0.5, xanchor='center',
                                 y=0.98, yanchor='top',
                                 pad=dict(t=2),
                             ),
-                            margin=dict(l=28, r=36, t=26, b=16),
-                            height=115,
+                            margin=dict(l=35, r=45, t=30, b=20),
+                            height=130,
                             xaxis=dict(
                                 visible=True,
-                                tickfont=dict(size=6, color='#94a3b8'),
+                                tickfont=dict(size=8, color='#94a3b8'),
                                 showgrid=False,
                                 zeroline=False,
                                 tickangle=0,
@@ -334,7 +333,7 @@ with tab1:
                                 visible=True,
                                 showgrid=True,
                                 gridcolor='#f1f5f9',
-                                tickfont=dict(size=6, color='#94a3b8'),
+                                tickfont=dict(size=8, color='#94a3b8'),
                                 tickformat=',.0f',
                                 nticks=3,
                                 range=[0, global_y_max],  # 전체 품목 공통 y축 상한
