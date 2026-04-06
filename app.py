@@ -538,6 +538,16 @@ with tab4:
         fig_sw_pie.update_layout(showlegend=False, template="plotly_white", height=350)
         st.plotly_chart(fig_sw_pie, use_container_width=True)
 
+        # 항목별 상세 설명 (원그래프 하단 이동 및 줄바꿈 적용)
+        st.markdown("""
+            <div style="font-size:0.75rem; color:#64748b; line-height:1.6; margin-top:10px; padding-left:10px;">
+                <b>• 정보서비스</b>: 뉴스/DB 제공 및 데이터 처리<br>
+                <b>• 컴퓨터서비스(SW)</b>: SW개발/컨설팅/유지보수<br>
+                <b>• 통신서비스</b>: 유무선망 음성·데이터 전송<br>
+                <b>• 기타 지식서비스</b>: R&D 및 경영·전문 컨설팅
+            </div>
+        """, unsafe_allow_html=True)
+
     st.divider()
 
     # 서비스 무역 항목별 상세 카드
@@ -624,5 +634,3 @@ with tab4:
                         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode=False
                     )
                     st.plotly_chart(fig_s_spark, use_container_width=True, config={'displayModeBar': False}, key=f"s_spark_{i}")
-
-    st.caption("**[항목 설명]** **정보서비스**: 뉴스/DB 제공 | **컴퓨터서비스(SW)**: 소프트웨어 개발/컨설팅 | **통신서비스**: 유무선 통신망 데이터 전송 | **기타 지식서비스**: R&D/전문 및 경영 컨설팅")
