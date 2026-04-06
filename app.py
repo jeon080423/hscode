@@ -231,6 +231,7 @@ with tab1:
 
                         fig_spark = go.Figure()
                         if not item_ytd.empty:
+                            # 메인 면적 라인
                             fig_spark.add_trace(go.Scatter(
                                 x=item_ytd['month_label'],
                                 y=item_ytd['cum_exp'],
@@ -238,11 +239,32 @@ with tab1:
                                 line=dict(color='#3b82f6', width=1.5),
                                 fill='tozeroy',
                                 fillcolor='rgba(59,130,246,0.08)',
+                                showlegend=False,
+                            ))
+                            # 끝점 마커 + 누적액 레이블
+                            last_x = item_ytd['month_label'].iloc[-1]
+                            last_y = item_ytd['cum_exp'].iloc[-1]
+                            fig_spark.add_trace(go.Scatter(
+                                x=[last_x],
+                                y=[last_y],
+                                mode='markers+text',
+                                marker=dict(color='#1d4ed8', size=5),
+                                text=[f"{int(round(last_y)):,}"],
+                                textposition='top left',
+                                textfont=dict(size=7, color='#1d4ed8'),
+                                showlegend=False,
                             ))
                         fig_spark.update_layout(
                             showlegend=False,
-                            margin=dict(l=28, r=2, t=4, b=16),
-                            height=95,
+                            title=dict(
+                                text='누적 수출액',
+                                font=dict(size=8, color='#64748b'),
+                                x=0, xanchor='left',
+                                y=1, yanchor='top',
+                                pad=dict(l=2, t=0),
+                            ),
+                            margin=dict(l=28, r=4, t=18, b=16),
+                            height=110,
                             xaxis=dict(
                                 visible=True,
                                 tickfont=dict(size=6, color='#94a3b8'),
