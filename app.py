@@ -128,17 +128,18 @@ with hdr_right:
             display:flex; flex-direction:column; align-items:flex-end;
             gap:10px; padding-top:10px;
         ">
-            <div style="
-                background: linear-gradient(135deg,#2d4090,#1a2d6d);
-                border-radius:8px; padding:12px 20px;
-                text-align:center; width:100%; box-sizing:border-box;
-            ">
-                <div style="font-size:1rem;font-weight:800;color:white;line-height:1.45;">
-                    2026년<br>ICT통계조사 실사 용역
-                </div>
-            </div>
             <div style="display:flex;align-items:center;gap:8px;">
                 {_logo_html}
+            </div>
+            <div style="
+                background: linear-gradient(135deg,#2d4090,#1a2d6d);
+                border-radius:8px; padding:12px 24px;
+                text-align:center; width:fit-content; box-sizing:border-box;
+                white-space: nowrap;
+            ">
+                <div style="font-size:1rem;font-weight:800;color:white;line-height:1.2;">
+                    2026년 ICT통계조사 실사 용역
+                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
