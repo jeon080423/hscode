@@ -624,3 +624,5 @@ with tab4:
                         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode=False
                     )
                     st.plotly_chart(fig_s_spark, use_container_width=True, config={'displayModeBar': False}, key=f"s_spark_{i}")
+
+    st.caption("**[항목 설명]** **정보서비스**: 뉴스/DB 제공 | **컴퓨터서비스(SW)**: 소프트웨어 개발/컨설팅 | **통신서비스**: 유무선 통신망 데이터 전송 | **기타 지식서비스**: R&D/전문 및 경영 컨설팅")
