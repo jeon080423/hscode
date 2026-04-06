@@ -123,9 +123,21 @@ df_service_yoy = df_service[df_service['year_month'] == yoy_service_month]
 service_growth = pd.merge(df_service_curr, df_service_prev[['service_name', 'exp_amount']], on='service_name', suffixes=('', '_prev'))
 service_growth = pd.merge(service_growth, df_service_yoy[['service_name', 'exp_amount']], on='service_name', suffixes=('', '_yoy'))
 
-service_growth['mom_rate'] = (service_growth['exp_amount'] - service_growth['exp_amount_prev']) / service_growth['exp_amount_prev'] * 100
-service_growth['yoy_rate'] = (service_growth['exp_amount'] - service_growth['exp_amount_yoy']) / service_growth['exp_amount_yoy'] * 100
-service_growth['trade_balance'] = service_growth['exp_amount'] - service_growth['imp_amount']
+df_service['trade_balance'] = service_growth['exp_amount'] - service_growth['imp_amount']
+
+# 서비스 무역 누적 수출액 스파크라인용 데이터 (현재 연도 1월~최신월)
+current_year_str = str(datetime.now().year)
+df_service_ytd = df_service[df_service['year_month'].str.startswith(current_year_str)].copy()
+df_service_ytd = df_service_ytd.sort_values('year_month')
+
+# 서비스용 y축 최대값 계산
+service_cum_max = {}
+for item in service_growth['service_name'].unique():
+    _d = df_service_ytd[df_service_ytd['service_name'] == item].sort_values('year_month').copy()
+    cum_max = float(_d['exp_amount'].cumsum().max()) if not _d.empty else 0.0
+    service_cum_max[item] = cum_max
+
+global_service_y_max = max(service_cum_max.values(), default=1) * 1.15
 
 # 메인 헤더 (2열: 좌측 타이틀 / 우측 과업명+CI)
 hdr_left, hdr_right = st.columns([2, 1])
@@ -533,33 +545,78 @@ with tab4:
     for i, s_item in enumerate(s_items):
         with cols_s[i]:
             with st.container(border=True):
+                sub_info, sub_chart = st.columns([1.1, 1], gap="small")
+                
                 # 색상 배지 설정
                 m_color = "#059669" if s_item['mom_rate'] >= 0 else "#dc2626"
                 y_color = "#2563eb" if s_item['yoy_rate'] >= 0 else "#d97706"
+                m_bg = "#f0fdf4" if s_item['mom_rate'] >= 0 else "#fef2f2"
+                y_bg = "#eff6ff" if s_item['yoy_rate'] >= 0 else "#fffbeb"
+                m_arrow = "▲" if s_item['mom_rate'] >= 0 else "▼"
+                y_arrow = "▲" if s_item['yoy_rate'] >= 0 else "▼"
                 bal_color = "#0f172a" if s_item['trade_balance'] >= 0 else "#dc2626"
                 
-                st.markdown(f"""
-                    <div style="padding:2px 0;">
-                        <div style="font-size:0.95rem; font-weight:700; color:#334155; margin-bottom:8px;">
-                            {s_item['service_name']}
+                with sub_info:
+                    st.markdown(f"""
+                        <div style="padding:2px 0;">
+                            <div style="font-size:0.95rem; font-weight:700; color:#334155;
+                                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                                        margin-bottom:2px;" title="{s_item['service_name']}">{s_item['service_name']}</div>
+                            <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:8px;">BOK Service</div>
+                            <div style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:8px;">
+                                {int(round(s_item['exp_amount'])):,}
+                                <span style="font-size:0.75rem; font-weight:400; color:#64748b;">백만</span>
+                            </div>
+                            <div style="font-size:0.8rem; color:#64748b; margin-bottom:10px; white-space:nowrap;">
+                                {int(round(s_item['imp_amount'])):,} <span style="font-size:0.7rem;">(수입)</span> | 
+                                <span style="color:{bal_color}; font-weight:600;">수지: {round(s_item['trade_balance'], 1):+,}</span>
+                            </div>
+                            <div style="display:flex; gap:4px; flex-wrap:nowrap; align-items:center;">
+                                <span style="background:{m_bg}; color:{m_color};
+                                             font-size:0.7rem; font-weight:700; white-space:nowrap;
+                                             border-radius:3px; padding:2px 4px;">
+                                    {m_arrow} {abs(s_item['mom_rate']):.1f}% MoM
+                                </span>
+                                <span style="background:{y_bg}; color:{y_color};
+                                             font-size:0.7rem; font-weight:700; white-space:nowrap;
+                                             border-radius:3px; padding:2px 4px;">
+                                    {y_arrow} {abs(s_item['yoy_rate']):.1f}% YoY
+                                </span>
+                            </div>
                         </div>
-                        <div style="font-size:1.2rem; font-weight:800; color:#0f172a; margin-bottom:4px;">
-                            ${s_item['exp_amount']:,}
-                            <span style="font-size:0.75rem; font-weight:400; color:#64748b;">(수출)</span>
-                        </div>
-                        <div style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">
-                            ${s_item['imp_amount']:,} <span style="font-size:0.7rem;">(수입)</span> | 
-                            <span style="color:{bal_color}; font-weight:600;">Balance: ${s_item['trade_balance']:+,}</span>
-                        </div>
-                        <div style="display:flex; gap:6px;">
-                            <span style="background:{"#f0fdf4" if s_item['mom_rate'] >= 0 else "#fef2f2"}; color:{m_color};
-                                         font-size:0.7rem; font-weight:700; border-radius:3px; padding:2px 6px;">
-                                {"▲" if s_item['mom_rate'] >= 0 else "▼"} {abs(s_item['mom_rate']):.1f}% MoM
-                            </span>
-                            <span style="background:{"#eff6ff" if s_item['yoy_rate'] >= 0 else "#fffbeb"}; color:{y_color};
-                                         font-size:0.7rem; font-weight:700; border-radius:3px; padding:2px 6px;">
-                                {"▲" if s_item['yoy_rate'] >= 0 else "▼"} {abs(s_item['yoy_rate']):.1f}% YoY
-                            </span>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
+                
+                with sub_chart:
+                    # ── 서비스 부문 누적 실적 스파크라인 ──
+                    item_s_ytd = df_service_ytd[
+                        df_service_ytd['service_name'] == s_item['service_name']
+                    ].sort_values('year_month').copy()
+                    item_s_ytd['cum_exp'] = item_s_ytd['exp_amount'].cumsum()
+                    item_s_ytd['month_label'] = item_s_ytd['year_month'].str[4:].astype(int).astype(str) + '월'
+
+                    fig_s_spark = go.Figure()
+                    if not item_s_ytd.empty:
+                        fig_s_spark.add_trace(go.Scatter(
+                            x=item_s_ytd['month_label'], y=item_s_ytd['cum_exp'],
+                            mode='lines', line=dict(color='#8b5cf6', width=1.5), # 서비스는 보라색 톤 적용 가능 (또는 파란색 통일)
+                            fill='tozeroy', fillcolor='rgba(139,92,246,0.08)', showlegend=False
+                        ))
+                        last_s_y = item_s_ytd['cum_exp'].iloc[-1]
+                        fig_s_spark.add_trace(go.Scatter(
+                            x=[item_s_ytd['month_label'].iloc[-1]], y=[last_s_y],
+                            mode='markers+text', marker=dict(color='#7c3aed', size=5),
+                            text=[f"{int(round(last_s_y)):,}"], textposition='middle right',
+                            textfont=dict(size=9, color='#7c3aed'), showlegend=False
+                        ))
+                    
+                    fig_s_spark.update_layout(
+                        showlegend=False,
+                        title=dict(text='누적 수출액', font=dict(size=10, color='#64748b'), x=0.5, xanchor='center', y=0.98),
+                        margin=dict(l=5, r=45, t=30, b=20),
+                        height=130,
+                        xaxis=dict(visible=True, tickfont=dict(size=8, color='#94a3b8'), showgrid=False, zeroline=False, tickangle=0,
+                                   tickvals=["1월", "4월", "7월", "10월", "12월"], range=[-0.5, 11.5]),
+                        yaxis=dict(visible=True, showgrid=True, gridcolor='#f1f5f9', showticklabels=False, range=[0, global_service_y_max]),
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode=False
+                    )
+                    st.plotly_chart(fig_s_spark, use_container_width=True, config={'displayModeBar': False}, key=f"s_spark_{i}")
