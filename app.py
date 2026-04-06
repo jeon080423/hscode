@@ -325,46 +325,17 @@ with tab3:
     annual_10yr = annual_10yr.dropna(subset=['growth_rate_yoy'])
     annual_10yr = annual_10yr[annual_10yr['year'].isin(recent_10_years)]
 
-    # 대분류별 막대그래프 (5개 대분류 → 한 줄에 3개 + 2개)
+    # 대분류별 막대그래프 (6개 대분류 → 3+3 두 줄)
     main_categories = list(data_processor.ICT_CATEGORIES.keys())
-    chart_colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+    chart_colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6']
 
-    # 첫 번째 행: 3개
-    bar_cols1 = st.columns(3)
-    for i in range(min(3, len(main_categories))):
-        cat = main_categories[i]
-        color = chart_colors[i]
-        cat_annual = annual_10yr[annual_10yr['category'] == cat].copy()
-        with bar_cols1[i]:
-            if cat_annual.empty:
-                st.info(f"{cat}: 데이터 없음")
-            else:
-                fig_bar = go.Figure(go.Bar(
-                    x=cat_annual['year'].astype(str),
-                    y=cat_annual['growth_rate_yoy'],
-                    marker_color=[color if v >= 0 else '#ef4444' for v in cat_annual['growth_rate_yoy']],
-                    text=[f"{v:+.1f}%" for v in cat_annual['growth_rate_yoy']],
-                    textposition='outside',
-                    hovertemplate="%{x}년<br>성장률: %{y:+.1f}%<extra></extra>"
-                ))
-                fig_bar.update_layout(
-                    title=dict(text=cat, font=dict(size=13, color='#1e3a8a'), x=0.5),
-                    template="plotly_white", height=320,
-                    margin=dict(t=45, b=35, l=15, r=15),
-                    yaxis=dict(ticksuffix="%", zeroline=True, zerolinecolor='#94a3b8', gridcolor='#f1f5f9'),
-                    xaxis=dict(tickangle=-45),
-                    showlegend=False
-                )
-                st.plotly_chart(fig_bar, use_container_width=True)
-
-    # 두 번째 행: 나머지
-    if len(main_categories) > 3:
-        remaining = main_categories[3:]
-        bar_cols2 = st.columns(len(remaining))
-        for j, cat in enumerate(remaining):
-            color = chart_colors[3 + j]
+    for row_idx in range(0, len(main_categories), 3):
+        row_cats = main_categories[row_idx:row_idx + 3]
+        bar_cols = st.columns(3)
+        for col_j, cat in enumerate(row_cats):
+            color = chart_colors[row_idx + col_j]
             cat_annual = annual_10yr[annual_10yr['category'] == cat].copy()
-            with bar_cols2[j]:
+            with bar_cols[col_j]:
                 if cat_annual.empty:
                     st.info(f"{cat}: 데이터 없음")
                 else:
