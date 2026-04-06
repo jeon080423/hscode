@@ -151,6 +151,17 @@ with tab1:
     df_ytd = df[df['year_month'].str.startswith(current_year_str)].copy()
     df_ytd = df_ytd.sort_values('year_month')
 
+    # 전체 품목의 연간 누적 최대값 (y축 공통 상한)
+    def get_item_max_cum(item_name):
+        d = df_ytd[df_ytd['item_name'] == item_name].sort_values('year_month')
+        if d.empty:
+            return 0
+        return d['exp_amount'].cumsum().max()
+
+    all_item_names = df_ytd['item_name'].unique()
+    global_y_max = max((get_item_max_cum(n) for n in all_item_names), default=1)
+    global_y_max = global_y_max * 1.1  # 상단 여백 10%
+
     items = list(display_growth_df.iterrows())
     COLS = 5
 
@@ -240,7 +251,6 @@ with tab1:
                                 categoryorder='array',
                                 categoryarray=all_month_labels,
                                 range=[-0.5, 11.5],
-                                # 1,4,7,10,12월만 표시
                                 tickvals=[f"{m}월" for m in [1, 4, 7, 10, 12]],
                             ),
                             yaxis=dict(
@@ -250,7 +260,7 @@ with tab1:
                                 tickfont=dict(size=6, color='#94a3b8'),
                                 tickformat=',.0f',
                                 nticks=3,
-                                rangemode='tozero',
+                                range=[0, global_y_max],  # 전체 품목 공통 y축 상한
                             ),
                             paper_bgcolor="rgba(0,0,0,0)",
                             plot_bgcolor="rgba(0,0,0,0)",
