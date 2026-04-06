@@ -425,20 +425,31 @@ with tab3:
     # 연간 집계: year_month에서 연도 추출 후 합산
     cat_df_full_copy = cat_df_full.copy()
     cat_df_full_copy['year'] = cat_df_full_copy['year_month'].str[:4].astype(int)
+
+    # 연도별 가용 월 수 집계 (12개월이 모두 있는 연도만 유효 연도로 인정)
+    months_per_year_cat = cat_df_full_copy.groupby(['year', 'category'])['year_month'].nunique().reset_index()
+    months_per_year_cat.columns = ['year', 'category', 'month_count']
+
     annual_df = cat_df_full_copy.groupby(['year', 'category'])['exp_amount'].sum().reset_index()
+    annual_df = annual_df.merge(months_per_year_cat, on=['year', 'category'])
 
-    # 최근 10년 (현재 연도 포함)
-    current_year = datetime.now().year
-    recent_10_years = list(range(current_year - 9, current_year + 1))
-    annual_10yr = annual_df[annual_df['year'].isin(recent_10_years)].copy()
+    # 12개월 데이터가 완성된 연도만 사용 (부분 연도 제외)
+    annual_df_full = annual_df[annual_df['month_count'] == 12].copy()
 
-    # 전년 대비 성장률 계산
-    annual_10yr = annual_10yr.sort_values(['category', 'year'])
+    # 완성 연도 목록에서 최근 10년 선택
+    complete_years = sorted(annual_df_full['year'].unique())
+    recent_10_years = complete_years[-10:] if len(complete_years) >= 10 else complete_years
+
+    # 성장률 계산: 완성 연도 전체 기준으로 shift → 이전 연도 대비 비교 정확
+    annual_10yr = annual_df_full.sort_values(['category', 'year']).copy()
     annual_10yr['prev_exp'] = annual_10yr.groupby('category')['exp_amount'].shift(1)
     annual_10yr['growth_rate_yoy'] = (
         (annual_10yr['exp_amount'] - annual_10yr['prev_exp']) / annual_10yr['prev_exp'] * 100
     ).round(1)
     annual_10yr = annual_10yr.dropna(subset=['growth_rate_yoy'])
+
+    # 최근 10개 완성 연도만 필터링
+    annual_10yr = annual_10yr[annual_10yr['year'].isin(recent_10_years)]
 
     # 대분류 3개 각각 막대그래프
     main_categories = list(data_processor.ICT_CATEGORIES.keys())
