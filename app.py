@@ -256,15 +256,15 @@ with tab1:
                                     {int(round(row['exp_amount_curr'])):,}
                                     <span style="font-size:0.75rem; font-weight:400; color:#64748b;">백만</span>
                                 </div>
-                                <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                                <div style="display:flex; gap:4px; flex-wrap:nowrap; align-items:center;">
                                     <span style="background:{mom_bg}; color:{mom_color};
-                                                 font-size:0.75rem; font-weight:700;
-                                                 border-radius:3px; padding:2px 6px;">
+                                                 font-size:0.7rem; font-weight:700; white-space:nowrap;
+                                                 border-radius:3px; padding:2px 4px;">
                                         {mom_arrow} {row['growth_rate']:+.1f}% MoM
                                     </span>
                                     <span style="background:{yoy_bg}; color:{yoy_color};
-                                                 font-size:0.75rem; font-weight:700;
-                                                 border-radius:3px; padding:2px 6px;">
+                                                 font-size:0.7rem; font-weight:700; white-space:nowrap;
+                                                 border-radius:3px; padding:2px 4px;">
                                         {yoy_arrow} {yoy_val:+.1f}% YoY
                                     </span>
                                 </div>
@@ -333,6 +333,7 @@ with tab1:
                                 visible=True,
                                 showgrid=True,
                                 gridcolor='#f1f5f9',
+                                showticklabels=False,
                                 tickfont=dict(size=8, color='#94a3b8'),
                                 tickformat=',.0f',
                                 nticks=3,
