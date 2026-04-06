@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import math
+import base64
 import api_client
 import data_processor
 
@@ -105,10 +106,42 @@ all_months = sorted(df['year_month'].unique())
 display_months = all_months[-n_months:]
 df_display = df[df['year_month'].isin(display_months)]
 
-# 메인 헤더
-st.title("관세청 ICT 품목 당월 수출 실적")
-st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다.")
-st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)")
+# 메인 헤더 (2열: 좌측 타이틀 / 우측 과업명+CI)
+hdr_left, hdr_right = st.columns([2, 1])
+
+with hdr_left:
+    st.title("관세청 ICT 품목 당월 수출 실적")
+    st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다.")
+    st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)")
+
+with hdr_right:
+    # 로고 일기 (base64)
+    try:
+        with open("assets/metrix_logo.png", "rb") as _f:
+            _logo_b64 = base64.b64encode(_f.read()).decode()
+        _logo_html = f'<img src="data:image/png;base64,{_logo_b64}" style="height:36px; object-fit:contain;">'
+    except Exception:
+        _logo_html = '<span style="font-size:1rem;font-weight:700;color:#2D4090;">MetriX</span>'
+
+    st.markdown(f"""
+        <div style="
+            display:flex; flex-direction:column; align-items:flex-end;
+            gap:10px; padding-top:10px;
+        ">
+            <div style="
+                background: linear-gradient(135deg,#2d4090,#1a2d6d);
+                border-radius:8px; padding:12px 20px;
+                text-align:center; width:100%; box-sizing:border-box;
+            ">
+                <div style="font-size:1rem;font-weight:800;color:white;line-height:1.45;">
+                    2026년<br>ICT통계조사 실사 용역
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                {_logo_html}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 # 데이터 사전 계산 (탭 공용)
 last_month = df_display['year_month'].max()
