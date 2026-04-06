@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import math
 import api_client
 import data_processor
 
@@ -68,7 +69,18 @@ def load_data(months=12):
             'hs_code': [x[1] for x in items_list],
             'item_name': [x[0] for x in items_list],
             'exp_amount': [
-                max(100, 500 + growth_factor + month * 10 + (hash(x[0]) % 2000))
+                max(50,
+                    # 품목별 고유 기본값 (크기 차이)
+                    int((abs(hash(x[0])) % 3000) + 200)
+                    # 연도별 성장 트렌드 (품목마다 다른 성장률)
+                    + growth_factor * (0.5 + (abs(hash(x[0])) % 100) / 100.0)
+                    # 품목별 계절성 패턴 (sin 주기를 다르게)
+                    + int(300 * math.sin(
+                        (month + (abs(hash(x[0])) % 6)) * math.pi / 6
+                    ))
+                    # 월별 기본 우상향
+                    + month * (3 + (abs(hash(x[0])) % 15))
+                )
                 for x in items_list
             ],
             'imp_amount': [100 + (hash(x[0]) % 500) for x in items_list],
