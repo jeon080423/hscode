@@ -134,9 +134,10 @@ with tab1:
 
     display_growth_df = display_growth_df.sort_values('exp_amount_curr', ascending=False).reset_index(drop=True)
 
-    # 12개월 스파크라인용 고정 데이터
-    last_12m = sorted(df['year_month'].unique())[-12:]
-    df_spark_base = df[df['year_month'].isin(last_12m)]
+    # 올해 누적 수출액 스파크라인용 데이터 (현재 연도 1월~최신월)
+    current_year_str = str(datetime.now().year)
+    df_ytd = df[df['year_month'].str.startswith(current_year_str)].copy()
+    df_ytd = df_ytd.sort_values('year_month')
 
     items = list(display_growth_df.iterrows())
     COLS = 5
@@ -197,19 +198,36 @@ with tab1:
                     </div>
                 """, unsafe_allow_html=True)
 
-                # ── 카드 내부 스파크라인 (12개월 고정) ──
-                item_history = df_spark_base[
-                    df_spark_base['item_name'] == row['item_name']
-                ].sort_values('year_month')
+                # ── 카드 내부: 올해 누적 수출 그래프 ──
+                item_ytd = df_ytd[
+                    df_ytd['item_name'] == row['item_name']
+                ].sort_values('year_month').copy()
+                item_ytd['cum_exp'] = item_ytd['exp_amount'].cumsum()
+                # x축 월 레이블 (1월, 2월, ... or just 숫자)
+                item_ytd['month_label'] = item_ytd['year_month'].str[4:].astype(int).astype(str) + '월'
 
-                fig_spark = px.line(item_history, x='year_month', y='exp_amount', render_mode='svg')
-                fig_spark.update_traces(line_color="#3b82f6", line_width=1.5)
+                fig_spark = px.line(item_ytd, x='month_label', y='cum_exp', render_mode='svg')
+                fig_spark.update_traces(
+                    line_color="#3b82f6",
+                    line_width=1.8,
+                    fill='tozeroy',
+                    fillcolor='rgba(59,130,246,0.08)'
+                )
                 fig_spark.update_layout(
                     showlegend=False,
-                    margin=dict(l=6, r=6, t=2, b=2),
-                    height=55,
-                    xaxis_visible=False,
-                    yaxis_visible=False,
+                    margin=dict(l=8, r=8, t=4, b=18),
+                    height=75,
+                    xaxis=dict(
+                        visible=True,
+                        tickfont=dict(size=8, color='#94a3b8'),
+                        showgrid=False,
+                        zeroline=False,
+                        tickangle=0,
+                    ),
+                    yaxis=dict(
+                        visible=False,
+                        showgrid=False,
+                    ),
                     paper_bgcolor="white",
                     plot_bgcolor="white",
                     hovermode=False
@@ -218,23 +236,23 @@ with tab1:
                 # 스파크라인을 카드 안에 넣는 중간 구분자
                 st.markdown("""
                     <div style="background:white; border-left:1px solid #e2e8f0;
-                                border-right:1px solid #e2e8f0;">
+                                border-right:1px solid #e2e8f0; margin:0; padding:0;">
                 """, unsafe_allow_html=True)
                 st.plotly_chart(fig_spark, use_container_width=True,
                                 config={'displayModeBar': False},
                                 key=f"spark_{idx_pos}")
                 st.markdown("</div>", unsafe_allow_html=True)
 
-                # ── 카드 하단 캡 ──
+                # ── 카드 하단 켜 ──
                 st.markdown("""
                     <div style="
                         background:white;
                         border:1px solid #e2e8f0;
-                        border-top:none;
+                        border-top:1px solid #f1f5f9;
                         border-radius:0 0 10px 10px;
-                        height:10px;
+                        height:8px;
                         margin-bottom:12px;
-                        box-shadow:0 1px 3px rgba(0,0,0,0.04);
+                        box-shadow:0 2px 4px rgba(0,0,0,0.04);
                     "></div>
                 """, unsafe_allow_html=True)
 
