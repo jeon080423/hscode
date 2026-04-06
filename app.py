@@ -177,104 +177,89 @@ with tab1:
                 yoy_color = "#d97706"; yoy_bg = "#fffbeb"; yoy_arrow = "▼"
 
             with cols[col_idx]:
-                # ── 카드 상단 (테두리 하단 없음) ──
-                st.markdown(f"""
-                    <div style="
-                        background:white;
-                        border:1px solid #e2e8f0;
-                        border-bottom:none;
-                        border-radius:10px 10px 0 0;
-                        padding:12px 14px 10px 14px;
-                        box-shadow:0 1px 3px rgba(0,0,0,0.04);
-                    ">
-                        <div style="font-size:0.78rem; font-weight:700; color:#334155;
-                                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-                                    margin-bottom:2px;" title="{row['item_name']}">{row['item_name']}</div>
-                        <div style="font-size:0.62rem; color:#94a3b8; margin-bottom:7px;">{row['hs_code']}</div>
-                        <div style="font-size:0.92rem; font-weight:800; color:#0f172a; margin-bottom:6px;">
-                            {int(round(row['exp_amount_curr'])):,}
-                            <span style="font-size:0.63rem; font-weight:400; color:#64748b;">백만</span>
-                        </div>
-                        <div style="display:flex; gap:5px; flex-wrap:wrap;">
-                            <span style="background:{mom_bg}; color:{mom_color};
-                                         font-size:0.68rem; font-weight:700;
-                                         border-radius:4px; padding:2px 6px;">
-                                {mom_arrow} {row['growth_rate']:+.1f}% MoM
-                            </span>
-                            <span style="background:{yoy_bg}; color:{yoy_color};
-                                         font-size:0.68rem; font-weight:700;
-                                         border-radius:4px; padding:2px 6px;">
-                                {yoy_arrow} {yoy_val:+.1f}% YoY
-                            </span>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
+                with st.container(border=True):
+                    sub_info, sub_chart = st.columns([1.1, 1], gap="small")
 
-                # ── 카드 내부: 올해 누적 수출 그래프 (1~12월 전체 공간 표시) ──
-                item_ytd = df_ytd[
-                    df_ytd['item_name'] == row['item_name']
-                ].sort_values('year_month').copy()
-                item_ytd['cum_exp'] = item_ytd['exp_amount'].cumsum()
-                item_ytd['month_num'] = item_ytd['year_month'].str[4:].astype(int)
+                    with sub_info:
+                        st.markdown(f"""
+                            <div style="padding:2px 0 4px 0;">
+                                <div style="font-size:0.75rem; font-weight:700; color:#334155;
+                                            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                                            margin-bottom:1px;" title="{row['item_name']}">{row['item_name']}</div>
+                                <div style="font-size:0.6rem; color:#94a3b8; margin-bottom:5px;">{row['hs_code']}</div>
+                                <div style="font-size:0.88rem; font-weight:800; color:#0f172a; margin-bottom:5px;">
+                                    {int(round(row['exp_amount_curr'])):,}
+                                    <span style="font-size:0.6rem; font-weight:400; color:#64748b;">백만</span>
+                                </div>
+                                <div style="display:flex; gap:3px; flex-wrap:wrap;">
+                                    <span style="background:{mom_bg}; color:{mom_color};
+                                                 font-size:0.62rem; font-weight:700;
+                                                 border-radius:3px; padding:1px 5px;">
+                                        {mom_arrow} {row['growth_rate']:+.1f}% MoM
+                                    </span>
+                                    <span style="background:{yoy_bg}; color:{yoy_color};
+                                                 font-size:0.62rem; font-weight:700;
+                                                 border-radius:3px; padding:1px 5px;">
+                                        {yoy_arrow} {yoy_val:+.1f}% YoY
+                                    </span>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
 
-                # 1~12월 전체 스캐폴드 (x축 고정용)
-                all_month_labels = [f"{m}월" for m in range(1, 13)]
+                    with sub_chart:
+                        # ── 올해 누적 수출 그래프 (y축 포함, 소형) ──
+                        item_ytd = df_ytd[
+                            df_ytd['item_name'] == row['item_name']
+                        ].sort_values('year_month').copy()
+                        item_ytd['cum_exp'] = item_ytd['exp_amount'].cumsum()
+                        item_ytd['month_num'] = item_ytd['year_month'].str[4:].astype(int)
+                        item_ytd['month_label'] = item_ytd['month_num'].astype(str) + '월'
 
-                # 실제 데이터가 있는 월까지만 trace 작성
-                item_ytd['month_label'] = item_ytd['month_num'].astype(str) + '월'
+                        all_month_labels = [f"{m}월" for m in range(1, 13)]
 
-                fig_spark = go.Figure()
-                if not item_ytd.empty:
-                    fig_spark.add_trace(go.Scatter(
-                        x=item_ytd['month_label'],
-                        y=item_ytd['cum_exp'],
-                        mode='lines',
-                        line=dict(color='#3b82f6', width=1.8),
-                        fill='tozeroy',
-                        fillcolor='rgba(59,130,246,0.08)',
-                    ))
-                fig_spark.update_layout(
-                    showlegend=False,
-                    margin=dict(l=8, r=8, t=4, b=18),
-                    height=75,
-                    xaxis=dict(
-                        visible=True,
-                        tickfont=dict(size=7, color='#94a3b8'),
-                        showgrid=False,
-                        zeroline=False,
-                        tickangle=0,
-                        categoryorder='array',
-                        categoryarray=all_month_labels,  # 항상 1~12월 표시
-                        range=[-0.5, 11.5],              # 12개 카테고리 공간 확보
-                    ),
-                    yaxis=dict(visible=False, showgrid=False, rangemode='tozero'),
-                    paper_bgcolor="white",
-                    plot_bgcolor="white",
-                    hovermode=False
-                )
+                        fig_spark = go.Figure()
+                        if not item_ytd.empty:
+                            fig_spark.add_trace(go.Scatter(
+                                x=item_ytd['month_label'],
+                                y=item_ytd['cum_exp'],
+                                mode='lines',
+                                line=dict(color='#3b82f6', width=1.5),
+                                fill='tozeroy',
+                                fillcolor='rgba(59,130,246,0.08)',
+                            ))
+                        fig_spark.update_layout(
+                            showlegend=False,
+                            margin=dict(l=28, r=2, t=4, b=16),
+                            height=95,
+                            xaxis=dict(
+                                visible=True,
+                                tickfont=dict(size=6, color='#94a3b8'),
+                                showgrid=False,
+                                zeroline=False,
+                                tickangle=0,
+                                categoryorder='array',
+                                categoryarray=all_month_labels,
+                                range=[-0.5, 11.5],
+                                # 1,4,7,10,12월만 표시
+                                tickvals=[f"{m}월" for m in [1, 4, 7, 10, 12]],
+                            ),
+                            yaxis=dict(
+                                visible=True,
+                                showgrid=True,
+                                gridcolor='#f1f5f9',
+                                tickfont=dict(size=6, color='#94a3b8'),
+                                tickformat=',.0f',
+                                nticks=3,
+                                rangemode='tozero',
+                            ),
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            hovermode=False
+                        )
+                        st.plotly_chart(fig_spark, use_container_width=True,
+                                        config={'displayModeBar': False},
+                                        key=f"spark_{idx_pos}")
 
-                # 스파크라인을 카드 안에 넣는 중간 구분자
-                st.markdown("""
-                    <div style="background:white; border-left:1px solid #e2e8f0;
-                                border-right:1px solid #e2e8f0; margin:0; padding:0;">
-                """, unsafe_allow_html=True)
-                st.plotly_chart(fig_spark, use_container_width=True,
-                                config={'displayModeBar': False},
-                                key=f"spark_{idx_pos}")
-                st.markdown("</div>", unsafe_allow_html=True)
-
-                # ── 카드 하단 켜 ──
-                st.markdown("""
-                    <div style="
-                        background:white;
-                        border:1px solid #e2e8f0;
-                        border-top:1px solid #f1f5f9;
-                        border-radius:0 0 10px 10px;
-                        height:8px;
-                        margin-bottom:12px;
-                        box-shadow:0 2px 4px rgba(0,0,0,0.04);
-                    "></div>
-                """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────
 # TAB 2: 품목별 상세 데이터
