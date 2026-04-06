@@ -151,16 +151,17 @@ with tab1:
     df_ytd = df[df['year_month'].str.startswith(current_year_str)].copy()
     df_ytd = df_ytd.sort_values('year_month')
 
-    # 표시될 품목 기준으로 누적 최대값 사전계산 (루프와 동일한 방식으로 일관성 확보)
+    # 표시될 품목 기준으로 누적 최대값 사전계산
+    # cumsum 외에 당월 수출액도 비교 → y축이 항상 당월값 이상임을 보장
     item_cum_max = {}
     for _, _r in display_growth_df.iterrows():
         _d = df_ytd[df_ytd['item_name'] == _r['item_name']].sort_values('year_month').copy()
-        if not _d.empty:
-            item_cum_max[_r['item_name']] = _d['exp_amount'].cumsum().max()
-        else:
-            item_cum_max[_r['item_name']] = 0
+        cum_max = float(_d['exp_amount'].cumsum().max()) if not _d.empty else 0.0
+        curr_val = float(_r.get('exp_amount_curr', 0))
+        item_cum_max[_r['item_name']] = max(cum_max, curr_val)
 
     global_y_max = max(item_cum_max.values(), default=1) * 1.15  # 상단 여백 15%
+
 
     items = list(display_growth_df.iterrows())
     COLS = 5
