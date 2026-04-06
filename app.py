@@ -136,15 +136,36 @@ with tab1:
     st.header(f"📦 주요 품목 ({last_month[:4]}.{last_month[4:]}) 현황")
     st.caption("MoM: 전월 대비 증감률 / YoY: 전년 동월 대비 증감률")
 
-    # 카테고리 필터
-    cat_options = ["전체"] + list(data_processor.ICT_CATEGORIES.keys())
-    selected_cat = st.selectbox("품목군 필터", cat_options, index=0, key="grid_cat_filter")
+    # 필터 행: 카테고리 필터 + 품목 검색
+    filter_col1, filter_col2 = st.columns([1, 2])
+    with filter_col1:
+        cat_options = ["전체"] + list(data_processor.ICT_CATEGORIES.keys())
+        selected_cat = st.selectbox("품목군 필터", cat_options, index=0, key="grid_cat_filter")
+    with filter_col2:
+        search_query = st.text_input(
+            "🔍 품목 검색",
+            placeholder="품목명 또는 HS코드 입력 (예: DRAM, 반도체, 1311...)",
+            key="item_search"
+        )
 
     display_growth_df = growth_df.copy()
     if selected_cat != "전체":
         display_growth_df = display_growth_df[display_growth_df['category'] == selected_cat]
+    if search_query.strip():
+        q = search_query.strip().lower()
+        mask = (
+            display_growth_df['item_name'].str.lower().str.contains(q, na=False) |
+            display_growth_df['hs_code'].astype(str).str.contains(q, na=False)
+        )
+        display_growth_df = display_growth_df[mask]
 
     display_growth_df = display_growth_df.sort_values('exp_amount_curr', ascending=False).reset_index(drop=True)
+
+    total_count = len(display_growth_df)
+    if search_query.strip() or selected_cat != "전체":
+        st.caption(f"검색 결과: **{total_count}개** 품목")
+    else:
+        st.caption(f"전체 **{total_count}개** 품목")
 
     # 올해 누적 수출액 스파크라인용 데이터 (현재 연도 1월~최신월)
     current_year_str = str(datetime.now().year)
