@@ -152,3 +152,36 @@ class DataProcessor:
 
         combined = pd.concat(data_list, ignore_index=True)
         return combined
+
+    def get_service_trade_data(self, months_list):
+        """
+        한국은행 서비스 무역(SW/ICT 서비스) 시뮬레이션 데이터를 생성합니다.
+        """
+        service_items = {
+            "컴퓨터서비스(SW)": {"base": 800, "growth": 1.2},
+            "정보서비스": {"base": 300, "growth": 1.1},
+            "통신서비스": {"base": 200, "growth": 1.05},
+            "기타 지식서비스": {"base": 150, "growth": 1.08}
+        }
+        
+        all_service_data = []
+        for yyyymm in months_list:
+            year = int(yyyymm[:4])
+            month = int(yyyymm[4:])
+            
+            for item, specs in service_items.items():
+                # 연도별 성장 및 월별 계절성(연말 효과 등) 반영
+                growth_factor = (year - 2020) * 50
+                val = specs["base"] + growth_factor + (month * 10)
+                # 약간의 랜덤 변동성
+                import random
+                val = val * random.uniform(0.95, 1.05)
+                
+                all_service_data.append({
+                    "year_month": yyyymm,
+                    "service_name": item,
+                    "exp_amount": round(val, 1),
+                    "imp_amount": round(val * 0.7, 1)  # 보통 수출이 우세한 구조 시뮬레이션
+                })
+        
+        return pd.DataFrame(all_service_data)
