@@ -9,7 +9,7 @@ import api_client
 import data_processor
 
 # 페이지 설정
-st.set_page_config(page_title="관세청 ICT 품목 당월 수출 실적", layout="wide")
+st.set_page_config(page_title="ICT 품목 및 서비스 무역 실적 통계 대시보드", layout="wide")
 
 # 스타일 설정
 st.markdown("""
@@ -114,7 +114,7 @@ df_service_display = df_service[df_service['year_month'].isin(display_months)]
 hdr_left, hdr_right = st.columns([2, 1])
 
 with hdr_left:
-    st.title("관세청 ICT 품목 당월 수출 실적")
+    st.title("ICT 품목 및 서비스 무역 실적 통계 대시보드")
 
 with hdr_right:
     # 로고 일기 (base64)
@@ -164,17 +164,17 @@ growth_df['growth_rate_yoy'] = growth_df_yoy['growth_rate']
 
 # 탭 메뉴 구성 (주요 품목 현황 → 품목별 상세 데이터 → 월별 수출액 추이 → 서비스 무역 통계)
 tab1, tab2, tab3, tab4 = st.tabs([
-    "📦 주요 품목 현황 (관세청)", 
-    "📋 품목별 상세 데이터 (관세청)", 
+    "📦 당월 주요 품목 현황 (관세청)", 
+    "📋 월별 품목 상세 데이터 (관세청)", 
     "📊 월별 수출액 추이 (관세청)", 
-    "💻 서비스 무역 통계 (한국은행)"
+    "💻 월별 서비스 무역 통계 (한국은행)"
 ])
 
 # ──────────────────────────────────────────────
 # TAB 1: 주요 품목 현황 (5열 카드 그리드)
 # ──────────────────────────────────────────────
 with tab1:
-    st.header(f"📦 주요 품목 ({last_month[:4]}.{last_month[4:]}) 현황 (출처: 관세청)")
+    st.header(f"📦 당월 주요 품목 ({last_month[:4]}.{last_month[4:]}) 현황 (출처: 관세청)")
     st.caption("MoM: 전월 대비 증감률 / YoY: 전년 동월 대비 증감률")
 
     # 필터 행: 카테고리 필터 + 품목 검색
@@ -361,7 +361,7 @@ with tab1:
 # TAB 2: 품목별 상세 데이터
 # ──────────────────────────────────────────────
 with tab2:
-    st.header("📋 품목별 상세 데이터 (출처: 관세청)")
+    st.header("📋 월별 품목 상세 데이터 (출처: 관세청)")
     st.dataframe(
         growth_df[['hs_code', 'item_name', 'category', 'exp_amount_prev', 'exp_amount_curr', 'growth_amount', 'growth_rate', 'growth_rate_yoy']],
         use_container_width=True, hide_index=True
@@ -483,7 +483,7 @@ with tab3:
 # TAB 4: 서비스 무역 통계 (독립 탭)
 # ──────────────────────────────────────────────
 with tab4:
-    st.header("💻 서비스 무역(SW·ICT 서비스) 현황 (출처: 한국은행)")
+    st.header("💻 월별 서비스 무역(SW·ICT 서비스) 현황 (출처: 한국은행)")
     st.info("한국은행 지식서비스 무역통계를 기반으로 소프트웨어 및 ICT 서비스 실적을 분석합니다.")
 
     sw_col1, sw_col2 = st.columns([2, 1])
