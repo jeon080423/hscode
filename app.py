@@ -296,73 +296,80 @@ with tab1:
     if selected_cat != "전체":
         display_growth_df = display_growth_df[display_growth_df['category'] == selected_cat]
 
-    display_growth_df = display_growth_df.sort_values('exp_amount_curr', ascending=False)
+    display_growth_df = display_growth_df.reset_index(drop=True)
+    items = list(display_growth_df.iterrows())
+    COLS = 5
 
-    # 신규 리스트 뷰 레이아웃 시작
-    st.markdown('<div class="item-list-container">', unsafe_allow_html=True)
+    for row_start in range(0, len(items), COLS):
+        row_items = items[row_start:row_start + COLS]
+        cols = st.columns(COLS)
 
-    for index, row in display_growth_df.iterrows():
-        idx_pos = list(display_growth_df.index).index(index)
-        if idx_pos < 3:
-            dot_class = "dot-red"
-        elif idx_pos < 8:
-            dot_class = "dot-yellow"
-        else:
-            dot_class = "dot-orange"
+        for col_idx, (_, row) in enumerate(row_items):
+            idx_pos = row_start + col_idx
+            # 성장률 색상
+            if row['growth_rate'] >= 5:
+                rate_color = "#059669"
+                rate_bg = "#f0fdf4"
+                arrow = "▲"
+            elif row['growth_rate'] >= 0:
+                rate_color = "#10b981"
+                rate_bg = "#f0fdf4"
+                arrow = "▲"
+            else:
+                rate_color = "#dc2626"
+                rate_bg = "#fef2f2"
+                arrow = "▼"
 
-        pos_pct = 60 + (hash(row['item_name']) % 35)
+            with cols[col_idx]:
+                # 스파크라인
+                item_history = df_display[df_display['item_name'] == row['item_name']].sort_values('year_month')
+                fig_spark = px.line(item_history, x='year_month', y='exp_amount', render_mode='svg')
+                fig_spark.update_traces(line_color="#3b82f6", line_width=1.5)
+                fig_spark.update_layout(
+                    showlegend=False,
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    height=50,
+                    xaxis_visible=False,
+                    yaxis_visible=False,
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    hovermode=False
+                )
 
-        row_container = st.container()
-        col_dot, col_info, col_range, col_spark, col_metric = row_container.columns([0.15, 1.2, 0.5, 1.5, 1.1], gap="small")
-
-        with col_dot:
-            st.markdown(f'<div class="status-dot-container" style="margin-top: 15px;"><div class="status-dot {dot_class}"></div></div>', unsafe_allow_html=True)
-
-        with col_info:
-            st.markdown(f"""
-                <div class="item-info" style="margin-top: 5px;">
-                    <div class="item-name">{row['item_name']}</div>
-                    <div class="item-hs-code">{row['hs_code']}</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col_range:
-            st.markdown(f"""
-                <div class="indicator-box" style="margin-top: 15px;">
-                    <div class="range-indicator">
-                        <div class="range-line"></div>
-                        <div class="range-dot" style="left: {pos_pct}%;"></div>
+                st.markdown(f"""
+                    <div style="
+                        background: white;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 10px;
+                        padding: 12px 14px 8px 14px;
+                        margin-bottom: 10px;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                        min-height: 130px;
+                    ">
+                        <div style="font-size:0.78rem; font-weight:700; color:#334155;
+                                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                                    margin-bottom:2px;" title="{row['item_name']}">{row['item_name']}</div>
+                        <div style="font-size:0.65rem; color:#94a3b8; margin-bottom:6px;">{row['hs_code']}</div>
+                        <div style="font-size:0.9rem; font-weight:800; color:#0f172a;">
+                            {int(round(row['exp_amount_curr'])):,}
+                            <span style="font-size:0.65rem; font-weight:400; color:#64748b;">백만</span>
+                        </div>
+                        <div style="
+                            display:inline-block;
+                            background:{rate_bg};
+                            color:{rate_color};
+                            font-size:0.75rem;
+                            font-weight:700;
+                            border-radius:4px;
+                            padding:1px 6px;
+                            margin-top:4px;
+                        ">{arrow} {row['growth_rate']:+.1f}% MoM</div>
                     </div>
-                </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+                st.plotly_chart(fig_spark, use_container_width=True,
+                                config={'displayModeBar': False},
+                                key=f"spark_{idx_pos}")
 
-        with col_spark:
-            item_history = df_display[df_display['item_name'] == row['item_name']].sort_values('year_month')
-            fig_spark = px.line(item_history, x='year_month', y='exp_amount', render_mode='svg')
-            fig_spark.update_traces(line_color="#ef4444", line_width=2)
-            fig_spark.update_layout(
-                showlegend=False,
-                margin=dict(l=0, r=0, t=5, b=5),
-                height=45,
-                xaxis_visible=False,
-                yaxis_visible=False,
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                hovermode=False
-            )
-            st.plotly_chart(fig_spark, use_container_width=True, config={'displayModeBar': False}, key=f"spark_{idx_pos}")
-
-        with col_metric:
-            st.markdown(f"""
-                <div class="metric-set" style="margin-top: 5px;">
-                    <div class="metric-main-val">{row['growth_rate']:+.2f}%</div>
-                    <div class="metric-sub-val">{int(round(row['exp_amount_curr'])):,} 백만</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown('<hr style="margin: 0; border: 0; border-top: 1px solid #f3f4f6;">', unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 with tab2:
     st.header("📋 품목별 상세 데이터")
