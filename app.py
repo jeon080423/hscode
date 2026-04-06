@@ -162,14 +162,19 @@ growth_df_yoy = processor.calculate_growth(curr_df, yoy_df_source)
 growth_df = growth_df_mom.copy()
 growth_df['growth_rate_yoy'] = growth_df_yoy['growth_rate']
 
-# 탭 메뉴 구성 (주요 품목 현황 → 품목별 상세 데이터 → 월별 수출액 추이)
-tab1, tab2, tab3 = st.tabs(["📦 주요 품목 현황", "📋 품목별 상세 데이터", "📊 월별 수출액 추이"])
+# 탭 메뉴 구성 (주요 품목 현황 → 품목별 상세 데이터 → 월별 수출액 추이 → 서비스 무역 통계)
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📦 주요 품목 현황 (관세청)", 
+    "📋 품목별 상세 데이터 (관세청)", 
+    "📊 월별 수출액 추이 (관세청)", 
+    "💻 서비스 무역 통계 (한국은행)"
+])
 
 # ──────────────────────────────────────────────
 # TAB 1: 주요 품목 현황 (5열 카드 그리드)
 # ──────────────────────────────────────────────
 with tab1:
-    st.header(f"📦 주요 품목 ({last_month[:4]}.{last_month[4:]}) 현황")
+    st.header(f"📦 주요 품목 ({last_month[:4]}.{last_month[4:]}) 현황 (출처: 관세청)")
     st.caption("MoM: 전월 대비 증감률 / YoY: 전년 동월 대비 증감률")
 
     # 필터 행: 카테고리 필터 + 품목 검색
@@ -356,7 +361,7 @@ with tab1:
 # TAB 2: 품목별 상세 데이터
 # ──────────────────────────────────────────────
 with tab2:
-    st.header("📋 품목별 상세 데이터")
+    st.header("📋 품목별 상세 데이터 (출처: 관세청)")
     st.dataframe(
         growth_df[['hs_code', 'item_name', 'category', 'exp_amount_prev', 'exp_amount_curr', 'growth_amount', 'growth_rate', 'growth_rate_yoy']],
         use_container_width=True, hide_index=True
@@ -365,17 +370,17 @@ with tab2:
     st.download_button("📥 상세 데이터 CSV 다운로드", data=csv, file_name=f"ict_export_{last_month}.csv", mime="text/csv")
 
 # ──────────────────────────────────────────────
-# TAB 3: 월별 수출액 추이 + 10년 성장률
+# TAB 3: 월별 수출액 추이 + 10년 성장률 (하드웨어 중심)
 # ──────────────────────────────────────────────
 with tab3:
-    st.header("📈 ICT 대분류별 수출 현황")
+    st.header("📈 ICT 대분류별 수출 현황 (출처: 관세청)")
 
     # 카테고리별 데이터 집계
     cat_df_full = df.groupby(['year_month', 'category'])['exp_amount'].sum().reset_index()
     cat_df_display = cat_df_full[cat_df_full['year_month'].isin(display_months)].copy()
 
     all_cats = sorted(cat_df_display['category'].unique())
-    selected_cats = st.multiselect("📈 출력 카테고리 선택", options=all_cats, default=all_cats,
+    selected_cats = st.multiselect("📈 출력 카테고리 선택 (관세청)", options=all_cats, default=all_cats,
                                    help="그래프에 표시할 카테고리를 선택하세요.")
 
     filtered_cat_df = cat_df_display[cat_df_display['category'].isin(selected_cats)].copy()
@@ -392,57 +397,31 @@ with tab3:
 
     st.divider()
 
-    # 1행: 월별 추이 비교
-    st.subheader("ICT 수출입 실적 비교 (하드웨어 vs 서비스 무역)")
-    col_hw_line, col_sw_line = st.columns(2)
-
-    with col_hw_line:
-        st.write("📈 **하드웨어(IT기기) 수출 추이**")
+    # 월별 추이 (하드웨어 단독)
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("관세청 ICT 품목별 월별 수출액 추이")
         fig_line = px.line(filtered_cat_df, x='year_month', y='exp_amount', color='category', markers=True,
                            custom_data=['yoy_growth'],
                            labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'category': '대분류'})
         fig_line.update_traces(
             hovertemplate="<b>%{fullData.name}</b><br>기준년월: %{x}<br>수출액: %{y:,.0f} USD<br>전년비: %{customdata[0]}<extra></extra>"
         )
-        fig_line.update_layout(template="plotly_white", height=350, margin=dict(t=10, b=10, l=10, r=10),
+        fig_line.update_layout(template="plotly_white", height=400, margin=dict(t=10, b=10, l=10, r=10),
+                               hovermode="x unified",
                                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig_line, use_container_width=True)
 
-    with col_sw_line:
-        st.write("💻 **서비스 무역(SW·ICT) 수출 추이**")
-        fig_sw_line = px.line(df_service_display, x='year_month', y='exp_amount', color='service_name', markers=True,
-                              labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'service_name': '항목'})
-        fig_sw_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>기준년월: %{x}<br>수출액: %{y:,.1f} USD<extra></extra>")
-        fig_sw_line.update_layout(template="plotly_white", height=350, margin=dict(t=10, b=10, l=10, r=10),
-                                  legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-        st.plotly_chart(fig_sw_line, use_container_width=True)
-
-    st.divider()
-
-    # 2행: 당월 비중 비교
-    st.subheader(f"당월({last_month}) 품목별 비중 분석")
-    col_hw_pie, col_sw_pie = st.columns(2)
-
-    with col_hw_pie:
+    with col2:
         last_month_pie_df = cat_df_display[cat_df_display['year_month'] == last_month]
-        fig_pie = px.pie(last_month_pie_df, values='exp_amount', names='category', title="하드웨어 부문 비중",
+        fig_pie = px.pie(last_month_pie_df, values='exp_amount', names='category', title=f"당월({last_month}) 하드웨어 비중 (관세청)",
                          hole=0.4, color_discrete_sequence=px.colors.qualitative.Safe)
         fig_pie.update_traces(textinfo='percent+label')
-        fig_pie.update_layout(showlegend=False, template="plotly_white", height=320, margin=dict(t=40, b=10, l=10, r=10))
+        fig_pie.update_layout(showlegend=False, template="plotly_white", height=350)
         st.plotly_chart(fig_pie, use_container_width=True)
 
-    with col_sw_pie:
-        last_month_sw_pie = df_service_display[df_service_display['year_month'] == last_month]
-        fig_sw_pie = px.pie(last_month_sw_pie, values='exp_amount', names='service_name', title="서비스 무역 부문 비중",
-                            hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
-        fig_sw_pie.update_traces(textinfo='percent+label')
-        fig_sw_pie.update_layout(showlegend=False, template="plotly_white", height=320, margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig_sw_pie, use_container_width=True)
-
-    st.divider()
-
-    # 대분류별 최근 10년 연간 성장률 막대그래프
-    st.header("📊 ICT 대분류별 최근 10년 연간 성장률")
+    # 대분류별 최근 10년 연간 성장률 막대그래프 (관세청)
+    st.header("📊 ICT 대분류별 최근 10년 연간 성장률 (출처: 관세청)")
     st.caption("각 대분류의 연간(YoY) 수출 성장률을 최근 10년 기준으로 표시합니다. (12개월 완성 연도만 포함)")
 
     cat_df_full_copy = cat_df_full.copy()
@@ -498,3 +477,41 @@ with tab3:
                         showlegend=False
                     )
                     st.plotly_chart(fig_bar, use_container_width=True)
+
+
+# ──────────────────────────────────────────────
+# TAB 4: 서비스 무역 통계 (독립 탭)
+# ──────────────────────────────────────────────
+with tab4:
+    st.header("💻 서비스 무역(SW·ICT 서비스) 현황 (출처: 한국은행)")
+    st.info("한국은행 지식서비스 무역통계를 기반으로 소프트웨어 및 ICT 서비스 실적을 분석합니다.")
+
+    sw_col1, sw_col2 = st.columns([2, 1])
+
+    with sw_col1:
+        st.subheader("한국은행 ICT 서비스 무역 월별 수출입 추이")
+        fig_sw_line = px.line(df_service_display, x='year_month', y='exp_amount', color='service_name', markers=True,
+                              labels={'exp_amount': '수출액 (USD)', 'year_month': '기준년월', 'service_name': '항목'})
+        fig_sw_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>기준년월: %{x}<br>수출액: %{y:,.1f} USD<extra></extra>")
+        fig_sw_line.update_layout(template="plotly_white", height=400, margin=dict(t=10, b=10, l=10, r=10),
+                                  legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        st.plotly_chart(fig_sw_line, use_container_width=True)
+
+    with sw_col2:
+        last_month_sw_pie = df_service_display[df_service_display['year_month'] == last_month]
+        fig_sw_pie = px.pie(last_month_sw_pie, values='exp_amount', names='service_name', title=f"당월({last_month}) 서비스 비중 (한국은행)",
+                            hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
+        fig_sw_pie.update_traces(textinfo='percent+label')
+        fig_sw_pie.update_layout(showlegend=False, template="plotly_white", height=350)
+        st.plotly_chart(fig_sw_pie, use_container_width=True)
+
+    st.divider()
+
+    # 서비스 무역 표 형태의 상세 데이터 제공
+    st.subheader(f"서비스 무역 주요 항목별 당월 상세 실적 ({last_month} 기준)")
+    st.dataframe(
+        last_month_sw_pie[['service_name', 'exp_amount', 'imp_amount']].rename(
+            columns={'service_name': '항목명', 'exp_amount': '수출액(USD)', 'imp_amount': '수입액(USD)'}
+        ),
+        use_container_width=True, hide_index=True
+    )
