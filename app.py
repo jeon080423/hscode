@@ -241,7 +241,7 @@ with tab1:
                                 fillcolor='rgba(59,130,246,0.08)',
                                 showlegend=False,
                             ))
-                            # 끝점 마커 + 누적액 레이블
+                            # 끝점 마커 + 누적액 레이블 (오른쪽)
                             last_x = item_ytd['month_label'].iloc[-1]
                             last_y = item_ytd['cum_exp'].iloc[-1]
                             fig_spark.add_trace(go.Scatter(
@@ -250,7 +250,7 @@ with tab1:
                                 mode='markers+text',
                                 marker=dict(color='#1d4ed8', size=5),
                                 text=[f"{int(round(last_y)):,}"],
-                                textposition='top left',
+                                textposition='middle right',
                                 textfont=dict(size=7, color='#1d4ed8'),
                                 showlegend=False,
                             ))
@@ -259,12 +259,12 @@ with tab1:
                             title=dict(
                                 text='누적 수출액',
                                 font=dict(size=8, color='#64748b'),
-                                x=0, xanchor='left',
-                                y=1, yanchor='top',
-                                pad=dict(l=2, t=0),
+                                x=0.5, xanchor='center',
+                                y=0.98, yanchor='top',
+                                pad=dict(t=2),
                             ),
-                            margin=dict(l=28, r=4, t=18, b=16),
-                            height=110,
+                            margin=dict(l=28, r=36, t=26, b=16),
+                            height=115,
                             xaxis=dict(
                                 visible=True,
                                 tickfont=dict(size=6, color='#94a3b8'),
