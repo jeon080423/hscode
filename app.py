@@ -198,36 +198,44 @@ with tab1:
                     </div>
                 """, unsafe_allow_html=True)
 
-                # ── 카드 내부: 올해 누적 수출 그래프 ──
+                # ── 카드 내부: 올해 누적 수출 그래프 (1~12월 전체 공간 표시) ──
                 item_ytd = df_ytd[
                     df_ytd['item_name'] == row['item_name']
                 ].sort_values('year_month').copy()
                 item_ytd['cum_exp'] = item_ytd['exp_amount'].cumsum()
-                # x축 월 레이블 (1월, 2월, ... or just 숫자)
-                item_ytd['month_label'] = item_ytd['year_month'].str[4:].astype(int).astype(str) + '월'
+                item_ytd['month_num'] = item_ytd['year_month'].str[4:].astype(int)
 
-                fig_spark = px.line(item_ytd, x='month_label', y='cum_exp', render_mode='svg')
-                fig_spark.update_traces(
-                    line_color="#3b82f6",
-                    line_width=1.8,
-                    fill='tozeroy',
-                    fillcolor='rgba(59,130,246,0.08)'
-                )
+                # 1~12월 전체 스캐폴드 (x축 고정용)
+                all_month_labels = [f"{m}월" for m in range(1, 13)]
+
+                # 실제 데이터가 있는 월까지만 trace 작성
+                item_ytd['month_label'] = item_ytd['month_num'].astype(str) + '월'
+
+                fig_spark = go.Figure()
+                if not item_ytd.empty:
+                    fig_spark.add_trace(go.Scatter(
+                        x=item_ytd['month_label'],
+                        y=item_ytd['cum_exp'],
+                        mode='lines',
+                        line=dict(color='#3b82f6', width=1.8),
+                        fill='tozeroy',
+                        fillcolor='rgba(59,130,246,0.08)',
+                    ))
                 fig_spark.update_layout(
                     showlegend=False,
                     margin=dict(l=8, r=8, t=4, b=18),
                     height=75,
                     xaxis=dict(
                         visible=True,
-                        tickfont=dict(size=8, color='#94a3b8'),
+                        tickfont=dict(size=7, color='#94a3b8'),
                         showgrid=False,
                         zeroline=False,
                         tickangle=0,
+                        categoryorder='array',
+                        categoryarray=all_month_labels,  # 항상 1~12월 표시
+                        range=[-0.5, 11.5],              # 12개 카테고리 공간 확보
                     ),
-                    yaxis=dict(
-                        visible=False,
-                        showgrid=False,
-                    ),
+                    yaxis=dict(visible=False, showgrid=False, rangemode='tozero'),
                     paper_bgcolor="white",
                     plot_bgcolor="white",
                     hovermode=False
