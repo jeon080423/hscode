@@ -233,7 +233,16 @@ with tab1:
         )
         display_growth_df = display_growth_df[mask]
 
-    display_growth_df = display_growth_df.sort_values('exp_amount_curr', ascending=False).reset_index(drop=True)
+    # 대분류별 전체 실적 합계 산출 (산업군별 우선순위 결정용)
+    cat_full_totals = growth_df.groupby('category')['exp_amount_curr'].sum().reset_index()
+    cat_full_totals.columns = ['category', 'category_total']
+
+    # 정렬용 데이터 병합 및 중첩 정렬 적용
+    display_growth_df = pd.merge(display_growth_df, cat_full_totals, on='category', how='left')
+    display_growth_df = display_growth_df.sort_values(
+        by=['category_total', 'exp_amount_curr'], 
+        ascending=[False, False]
+    ).reset_index(drop=True)
 
     total_count = len(display_growth_df)
     if search_query.strip() or selected_cat != "전체":
