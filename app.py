@@ -538,13 +538,15 @@ with tab4:
         fig_sw_pie.update_layout(showlegend=False, template="plotly_white", height=350)
         st.plotly_chart(fig_sw_pie, use_container_width=True)
 
-        # 항목별 상세 설명 (원그래프 하단 이동 및 줄바꿈 적용)
+        # 항목별 상세 설명 (원그래프와 중앙 정렬 및 여백 조정)
         st.markdown("""
-            <div style="font-size:0.75rem; color:#64748b; line-height:1.6; margin-top:10px; padding-left:10px;">
-                <b>• 정보서비스</b>: 뉴스/DB 제공 및 데이터 처리<br>
-                <b>• 컴퓨터서비스(SW)</b>: SW개발/컨설팅/유지보수<br>
-                <b>• 통신서비스</b>: 유무선망 음성·데이터 전송<br>
-                <b>• 기타 지식서비스</b>: R&D 및 경영·전문 컨설팅
+            <div style="font-size:0.75rem; color:#64748b; line-height:1.7; margin-top:5px; text-align:center;">
+                <span style="display:inline-block; text-align:left;">
+                    • <b>정보서비스</b>: 뉴스/DB 제공 및 데이터 처리<br>
+                    • <b>컴퓨터서비스(SW)</b>: SW개발/컨설팅/유지보수<br>
+                    • <b>통신서비스</b>: 유무선망 음성·데이터 전송<br>
+                    • <b>기타 지식서비스</b>: R&D 및 경영·전문 컨설팅
+                </span>
             </div>
         """, unsafe_allow_html=True)
 
