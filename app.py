@@ -350,7 +350,7 @@ with tab1:
                 plot_bgcolor="rgba(0,0,0,0)",
                 hovermode=False
             )
-            st.plotly_chart(fig_spark, use_container_width=True, config={'displayModeBar': False})
+            st.plotly_chart(fig_spark, use_container_width=True, config={'displayModeBar': False}, key=f"spark_{idx_pos}")
 
         with col_metric:
             st.markdown(f"""
