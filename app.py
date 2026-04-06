@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import math
+import numpy as np
 import base64
 import api_client
 import data_processor
@@ -119,11 +120,14 @@ df_service_curr = df_service[df_service['year_month'] == last_service_month]
 df_service_prev = df_service[df_service['year_month'] == prev_service_month]
 df_service_yoy = df_service[df_service['year_month'] == yoy_service_month]
 
-# 항목별 증감률 병합
+# 항목별 증감률 병합 및 계산
 service_growth = pd.merge(df_service_curr, df_service_prev[['service_name', 'exp_amount']], on='service_name', suffixes=('', '_prev'))
 service_growth = pd.merge(service_growth, df_service_yoy[['service_name', 'exp_amount']], on='service_name', suffixes=('', '_yoy'))
 
-df_service['trade_balance'] = service_growth['exp_amount'] - service_growth['imp_amount']
+# 계산 시 0으로 나누기 방지 및 결측치 처리
+service_growth['mom_rate'] = ((service_growth['exp_amount'] - service_growth['exp_amount_prev']) / service_growth['exp_amount_prev'].replace(0, np.nan) * 100).fillna(0)
+service_growth['yoy_rate'] = ((service_growth['exp_amount'] - service_growth['exp_amount_yoy']) / service_growth['exp_amount_yoy'].replace(0, np.nan) * 100).fillna(0)
+service_growth['trade_balance'] = service_growth['exp_amount'] - service_growth['imp_amount']
 
 # 서비스 무역 누적 수출액 스파크라인용 데이터 (현재 연도 1월~최신월)
 current_year_str = str(datetime.now().year)
