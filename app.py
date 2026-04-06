@@ -111,7 +111,6 @@ hdr_left, hdr_right = st.columns([2, 1])
 
 with hdr_left:
     st.title("관세청 ICT 품목 당월 수출 실적")
-    st.caption("관세청(Korea Customs Service) 수출입 통계 데이터를 기반으로 ICT 주요 품목의 실적을 시각화합니다.")
     st.markdown(f"**기준:** 최근 {n_months}개월 데이터 (단위: 백만 USD)")
 
 with hdr_right:
