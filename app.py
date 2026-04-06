@@ -267,136 +267,144 @@ with tab1:
     global_y_max = max(item_cum_max.values(), default=1) * 1.15  # 상단 여백 15%
 
 
-    items = list(display_growth_df.iterrows())
-    COLS = 5
+    # 카테고리별로 섹션을 나누어 렌더링
+    unique_cats = display_growth_df['category'].unique()
 
-    for row_start in range(0, len(items), COLS):
-        row_items = items[row_start:row_start + COLS]
-        cols = st.columns(COLS)
+    for cat in unique_cats:
+        st.divider()
+        cat_df = display_growth_df[display_growth_df['category'] == cat]
+        cat_total = cat_df['category_total'].iloc[0] if not cat_df.empty else 0
+        
+        st.subheader(f"■ {cat} (산업군 전체 실적: {int(round(cat_total)):,} 백만)")
+        
+        cat_items = list(cat_df.iterrows())
+        for row_start in range(0, len(cat_items), COLS):
+            row_items = cat_items[row_start:row_start + COLS]
+            cols = st.columns(COLS)
 
-        for col_idx, (_, row) in enumerate(row_items):
-            idx_pos = row_start + col_idx
+            for col_idx, (_, row) in enumerate(row_items):
+                idx_pos = row_start + col_idx
 
-            # MoM 색상
-            if row['growth_rate'] >= 0:
-                mom_color = "#059669"; mom_bg = "#f0fdf4"; mom_arrow = "▲"
-            else:
-                mom_color = "#dc2626"; mom_bg = "#fef2f2"; mom_arrow = "▼"
+                # MoM 색상
+                if row['growth_rate'] >= 0:
+                    mom_color = "#059669"; mom_bg = "#f0fdf4"; mom_arrow = "▲"
+                else:
+                    mom_color = "#dc2626"; mom_bg = "#fef2f2"; mom_arrow = "▼"
 
-            # YoY 색상
-            yoy_val = row.get('growth_rate_yoy', 0)
-            if pd.isna(yoy_val):
-                yoy_val = 0.0
-            if yoy_val >= 0:
-                yoy_color = "#2563eb"; yoy_bg = "#eff6ff"; yoy_arrow = "▲"
-            else:
-                yoy_color = "#d97706"; yoy_bg = "#fffbeb"; yoy_arrow = "▼"
+                # YoY 색상
+                yoy_val = row.get('growth_rate_yoy', 0)
+                if pd.isna(yoy_val):
+                    yoy_val = 0.0
+                if yoy_val >= 0:
+                    yoy_color = "#2563eb"; yoy_bg = "#eff6ff"; yoy_arrow = "▲"
+                else:
+                    yoy_color = "#d97706"; yoy_bg = "#fffbeb"; yoy_arrow = "▼"
 
-            with cols[col_idx]:
-                with st.container(border=True):
-                    sub_info, sub_chart = st.columns([1.1, 1], gap="small")
+                with cols[col_idx]:
+                    with st.container(border=True):
+                        sub_info, sub_chart = st.columns([1.1, 1], gap="small")
 
-                    with sub_info:
-                        st.markdown(f"""
-                            <div style="padding:2px 0 4px 0;">
-                                <div style="font-size:0.95rem; font-weight:700; color:#334155;
-                                            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-                                            margin-bottom:2px;" title="{row['item_name']}">{row['item_name']}</div>
-                                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:8px;">{row['hs_code']}</div>
-                                <div style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:8px;">
-                                    {int(round(row['exp_amount_curr'])):,}
-                                    <span style="font-size:0.75rem; font-weight:400; color:#64748b;">백만</span>
+                        with sub_info:
+                            st.markdown(f"""
+                                <div style="padding:2px 0 4px 0;">
+                                    <div style="font-size:0.95rem; font-weight:700; color:#334155;
+                                                white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                                                margin-bottom:2px;" title="{row['item_name']}">{row['item_name']}</div>
+                                    <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:8px;">{row['hs_code']}</div>
+                                    <div style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:8px;">
+                                        {int(round(row['exp_amount_curr'])):,}
+                                        <span style="font-size:0.75rem; font-weight:400; color:#64748b;">백만</span>
+                                    </div>
+                                    <div style="display:flex; gap:4px; flex-wrap:nowrap; align-items:center;">
+                                        <span style="background:{mom_bg}; color:{mom_color};
+                                                     font-size:0.7rem; font-weight:700; white-space:nowrap;
+                                                     border-radius:3px; padding:2px 4px;">
+                                            {mom_arrow} {row['growth_rate']:+.1f}% MoM
+                                        </span>
+                                        <span style="background:{yoy_bg}; color:{yoy_color};
+                                                     font-size:0.7rem; font-weight:700; white-space:nowrap;
+                                                     border-radius:3px; padding:2px 4px;">
+                                            {yoy_arrow} {yoy_val:+.1f}% YoY
+                                        </span>
+                                    </div>
                                 </div>
-                                <div style="display:flex; gap:4px; flex-wrap:nowrap; align-items:center;">
-                                    <span style="background:{mom_bg}; color:{mom_color};
-                                                 font-size:0.7rem; font-weight:700; white-space:nowrap;
-                                                 border-radius:3px; padding:2px 4px;">
-                                        {mom_arrow} {row['growth_rate']:+.1f}% MoM
-                                    </span>
-                                    <span style="background:{yoy_bg}; color:{yoy_color};
-                                                 font-size:0.7rem; font-weight:700; white-space:nowrap;
-                                                 border-radius:3px; padding:2px 4px;">
-                                        {yoy_arrow} {yoy_val:+.1f}% YoY
-                                    </span>
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
 
-                    with sub_chart:
-                        # ── 올해 누적 수출 그래프 (y축 포함, 소형) ──
-                        item_ytd = df_ytd[
-                            df_ytd['item_name'] == row['item_name']
-                        ].sort_values('year_month').copy()
-                        item_ytd['cum_exp'] = item_ytd['exp_amount'].cumsum()
-                        item_ytd['month_num'] = item_ytd['year_month'].str[4:].astype(int)
-                        item_ytd['month_label'] = item_ytd['month_num'].astype(str) + '월'
+                        with sub_chart:
+                            # ── 올해 누적 수출 그래프 (y축 포함, 소형) ──
+                            item_ytd = df_ytd[
+                                df_ytd['item_name'] == row['item_name']
+                            ].sort_values('year_month').copy()
+                            item_ytd['cum_exp'] = item_ytd['exp_amount'].cumsum()
+                            item_ytd['month_num'] = item_ytd['year_month'].str[4:].astype(int)
+                            item_ytd['month_label'] = item_ytd['month_num'].astype(str) + '월'
 
-                        all_month_labels = [f"{m}월" for m in range(1, 13)]
+                            all_month_labels = [f"{m}월" for m in range(1, 13)]
 
-                        fig_spark = go.Figure()
-                        if not item_ytd.empty:
-                            # 메인 면적 라인
-                            fig_spark.add_trace(go.Scatter(
-                                x=item_ytd['month_label'],
-                                y=item_ytd['cum_exp'],
-                                mode='lines',
-                                line=dict(color='#3b82f6', width=1.5),
-                                fill='tozeroy',
-                                fillcolor='rgba(59,130,246,0.08)',
+                            fig_spark = go.Figure()
+                            if not item_ytd.empty:
+                                # 메인 면적 라인
+                                fig_spark.add_trace(go.Scatter(
+                                    x=item_ytd['month_label'],
+                                    y=item_ytd['cum_exp'],
+                                    mode='lines',
+                                    line=dict(color='#3b82f6', width=1.5),
+                                    fill='tozeroy',
+                                    fillcolor='rgba(59,130,246,0.08)',
+                                    showlegend=False,
+                                ))
+                                # 끝점 마커 + 누적액 레이블 (오른쪽)
+                                last_x = item_ytd['month_label'].iloc[-1]
+                                last_y = item_ytd['cum_exp'].iloc[-1]
+                                fig_spark.add_trace(go.Scatter(
+                                    x=[last_x],
+                                    y=[last_y],
+                                    mode='markers+text',
+                                    marker=dict(color='#1d4ed8', size=5),
+                                    text=[f"{int(round(last_y)):,}"],
+                                    textposition='middle right',
+                                    textfont=dict(size=9, color='#1d4ed8'),
+                                    showlegend=False,
+                                ))
+                            fig_spark.update_layout(
                                 showlegend=False,
-                            ))
-                            # 끝점 마커 + 누적액 레이블 (오른쪽)
-                            last_x = item_ytd['month_label'].iloc[-1]
-                            last_y = item_ytd['cum_exp'].iloc[-1]
-                            fig_spark.add_trace(go.Scatter(
-                                x=[last_x],
-                                y=[last_y],
-                                mode='markers+text',
-                                marker=dict(color='#1d4ed8', size=5),
-                                text=[f"{int(round(last_y)):,}"],
-                                textposition='middle right',
-                                textfont=dict(size=9, color='#1d4ed8'),
-                                showlegend=False,
-                            ))
-                        fig_spark.update_layout(
-                            showlegend=False,
-                            title=dict(
-                                text='누적 수출액',
-                                font=dict(size=10, color='#64748b'),
-                                x=0.5, xanchor='center',
-                                y=0.98, yanchor='top',
-                                pad=dict(t=2),
-                            ),
-                            margin=dict(l=35, r=45, t=30, b=20),
-                            height=130,
-                            xaxis=dict(
-                                visible=True,
-                                tickfont=dict(size=8, color='#94a3b8'),
-                                showgrid=False,
-                                zeroline=False,
-                                tickangle=0,
-                                categoryorder='array',
-                                categoryarray=all_month_labels,
-                                range=[-0.5, 11.5],
-                                tickvals=[f"{m}월" for m in [1, 4, 7, 10, 12]],
-                            ),
-                            yaxis=dict(
-                                visible=True,
-                                showgrid=True,
-                                gridcolor='#f1f5f9',
-                                showticklabels=False,
-                                tickfont=dict(size=8, color='#94a3b8'),
-                                tickformat=',.0f',
-                                nticks=3,
-                                range=[0, global_y_max],  # 전체 품목 공통 y축 상한
-                            ),
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            plot_bgcolor="rgba(0,0,0,0)",
-                            hovermode=False
-                        )
-                        st.plotly_chart(fig_spark, use_container_width=True,
-                                        config={'displayModeBar': False},
-                                        key=f"spark_{idx_pos}")
+                                title=dict(
+                                    text='누적 수출액',
+                                    font=dict(size=10, color='#64748b'),
+                                    x=0.5, xanchor='center',
+                                    y=0.98, yanchor='top',
+                                    pad=dict(t=2),
+                                ),
+                                margin=dict(l=35, r=45, t=30, b=20),
+                                height=130,
+                                xaxis=dict(
+                                    visible=True,
+                                    tickfont=dict(size=8, color='#94a3b8'),
+                                    showgrid=False,
+                                    zeroline=False,
+                                    tickangle=0,
+                                    categoryorder='array',
+                                    categoryarray=all_month_labels,
+                                    range=[-0.5, 11.5],
+                                    tickvals=[f"{m}월" for m in [1, 4, 7, 10, 12]],
+                                ),
+                                yaxis=dict(
+                                    visible=True,
+                                    showgrid=True,
+                                    gridcolor='#f1f5f9',
+                                    showticklabels=False,
+                                    tickfont=dict(size=8, color='#94a3b8'),
+                                    tickformat=',.0f',
+                                    nticks=3,
+                                    range=[0, global_y_max],  # 전체 품목 공통 y축 상한
+                                ),
+                                paper_bgcolor="rgba(0,0,0,0)",
+                                plot_bgcolor="rgba(0,0,0,0)",
+                                hovermode=False
+                            )
+                            st.plotly_chart(fig_spark, use_container_width=True,
+                                            config={'displayModeBar': False},
+                                            key=f"spark_{idx_pos}_{cat}")
 
 
 # ──────────────────────────────────────────────
