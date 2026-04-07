@@ -52,48 +52,78 @@ st.markdown("""
 client = api_client.CustomsAPIClient()
 processor = data_processor.DataProcessor()
 
-@st.cache_data(ttl=60)
-def load_data(months=12):
-    """최근 N개월 데이터를 로드합니다."""
+@st.cache_data(ttl=3600)
+def load_data(months=24):
+    """최근 N개월 데이터를 관세청 API로부터 실측 로드합니다."""
+    cache_path = "data/customs_cache.csv"
+    import os
+    
+    # 캐시 디렉토리 생성
+    if not os.path.exists("data"):
+        os.makedirs("data")
+        
+    # 기존 캐시 로드
+    if os.path.exists(cache_path):
+        try:
+            cache_df = pd.read_csv(cache_path, dtype={'hs_code': str, 'year_month': str})
+        except Exception:
+            cache_df = pd.DataFrame()
+    else:
+        cache_df = pd.DataFrame()
+
     end_date = datetime.now()
-    dates = [(end_date - timedelta(days=30*i)).strftime("%Y%m") for i in range(months)]
+    # 관세청 실적은 전월 말 데이터가 가장 빠르므로 기준 조정
+    base_date = end_date - timedelta(days=20) 
+    dates = [(base_date - timedelta(days=30*i)).strftime("%Y%m") for i in range(months)]
     dates.sort()
 
+    ict_items = data_processor.ICT_DETAIL_ITEMS
     all_data = []
-    items_list = list(data_processor.ICT_DETAIL_ITEMS.items())
+    
+    # 진행률 표시
+    progress_bar = st.progress(0, text="관세청 API 데이터 수집 중...")
+    
+    for i, d in enumerate(dates):
+        progress_bar.progress((i + 1) / len(dates), text=f"📅 {d[:4]}년 {d[4:]}월 데이터 동기화 중...")
+        
+        # 해당 월 데이터가 캐시에 있는지 확인
+        if not cache_df.empty and d in cache_df['year_month'].unique():
+            all_data.append(cache_df[cache_df['year_month'] == d])
+            continue
+            
+        # 캐시에 없으면 API 호출
+        month_items = []
+        for name, code in ict_items.items():
+            # HS코드는 앞 4자리 또는 6자리 매칭을 위해 원본 유지
+            df_item, err = client.fetch_monthly_data(d, code[:4]) # GW API 제약상 앞 4자리 검색이 안정적
+            if df_item is not None and not df_item.empty:
+                # 상세 정확도 향상을 위해 코드 레벨 필터링 (8자리 등)
+                df_match = df_item[df_item['hs_code'].str.startswith(code[:6])]
+                if df_match.empty: df_match = df_item.head(1) # 보수적 매칭
+                
+                df_match = df_match.copy()
+                df_match['item_name'] = name
+                df_match['hs_code'] = code
+                month_items.append(df_match)
+        
+        if month_items:
+            month_df = pd.concat(month_items, ignore_index=True)
+            all_data.append(month_df)
+            # 캐시에 추가
+            cache_df = pd.concat([cache_df, month_df], ignore_index=True)
 
-    for d in dates:
-        year = int(d) // 100
-        month = int(d) % 100
-        growth_factor = (year - 2015) * 150
-        df_month = pd.DataFrame({
-            'year_month': d,
-            'hs_code': [x[1] for x in items_list],
-            'item_name': [x[0] for x in items_list],
-            'exp_amount': [
-                max(50,
-                    # 품목별 고유 기본값 (크기 차이)
-                    int((abs(hash(x[0])) % 3000) + 200)
-                    # 연도별 성장 트렌드 (품목마다 다른 성장률)
-                    + growth_factor * (0.5 + (abs(hash(x[0])) % 100) / 100.0)
-                    # 품목별 계절성 패턴 (sin 주기를 다르게)
-                    + int(300 * math.sin(
-                        (month + (abs(hash(x[0])) % 6)) * math.pi / 6
-                    ))
-                    # 월별 기본 우상향
-                    + month * (3 + (abs(hash(x[0])) % 15))
-                )
-                for x in items_list
-            ],
-            'imp_amount': [100 + (hash(x[0]) % 500) for x in items_list],
-            'trade_balance': [0] * len(items_list)
-        })
-        df_month['trade_balance'] = df_month['exp_amount'] - df_month['imp_amount']
-        all_data.append(df_month)
+    progress_bar.empty()
+    
+    if not all_data:
+        return pd.DataFrame()
 
     combined = pd.concat(all_data, ignore_index=True)
+    # 캐시 저장
+    cache_df.drop_duplicates(subset=['year_month', 'item_name'], keep='last').to_csv(cache_path, index=False)
+    
     combined = processor.categorize_data(combined)
     return combined
+
 
 # 사이드바 설정
 st.sidebar.title("📊 ICT Dashboard")
@@ -278,7 +308,9 @@ with tab1:
         st.subheader(f"■ {cat} (산업군 전체 실적: {int(round(cat_total)):,} 백만)")
         
         cat_items = list(cat_df.iterrows())
+        COLS = 5
         for row_start in range(0, len(cat_items), COLS):
+
             row_items = cat_items[row_start:row_start + COLS]
             cols = st.columns(COLS)
 
