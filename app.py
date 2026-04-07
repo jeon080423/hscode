@@ -334,7 +334,7 @@ with tab1:
 
                 with cols[col_idx]:
                     with st.container(border=True):
-                        sub_info, sub_chart = st.columns([1.1, 1], gap="small")
+                        sub_info, sub_chart = st.columns([1.6, 1], gap="small")
 
                         with sub_info:
                             st.markdown(f"""
@@ -421,13 +421,9 @@ with tab1:
                                     tickvals=[f"{m}월" for m in [1, 4, 7, 10, 12]],
                                 ),
                                 yaxis=dict(
-                                    visible=True,
-                                    showgrid=True,
-                                    gridcolor='#f1f5f9',
+                                    visible=False,
+                                    showgrid=False,
                                     showticklabels=False,
-                                    tickfont=dict(size=8, color='#94a3b8'),
-                                    tickformat=',.0f',
-                                    nticks=3,
                                     range=[0, global_y_max],  # 전체 품목 공통 y축 상한
                                 ),
                                 paper_bgcolor="rgba(0,0,0,0)",
@@ -610,7 +606,7 @@ with tab4:
     for i, s_item in enumerate(s_items):
         with cols_s[i]:
             with st.container(border=True):
-                sub_info, sub_chart = st.columns([1.1, 1], gap="small")
+                sub_info, sub_chart = st.columns([1.6, 1], gap="small")
                 
                 # 색상 배지 설정
                 m_color = "#059669" if s_item['mom_rate'] >= 0 else "#dc2626"
@@ -681,7 +677,7 @@ with tab4:
                         height=130,
                         xaxis=dict(visible=True, tickfont=dict(size=8, color='#94a3b8'), showgrid=False, zeroline=False, tickangle=0,
                                    tickvals=["1월", "4월", "7월", "10월", "12월"], range=[-0.5, 11.5]),
-                        yaxis=dict(visible=True, showgrid=True, gridcolor='#f1f5f9', showticklabels=False, range=[0, global_service_y_max]),
+                        yaxis=dict(visible=False, showgrid=False, showticklabels=False, range=[0, global_service_y_max]),
                         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode=False
                     )
                     st.plotly_chart(fig_s_spark, use_container_width=True, config={'displayModeBar': False}, key=f"s_spark_{i}")
