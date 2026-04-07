@@ -56,8 +56,7 @@ def fetch_month_bulk(date_str):
 
 @st.cache_data(ttl=3600)
 def load_data(months=13):
-    """최근 N개월 데이터를 벌크/병렬 방식으로 초고속 로드합니다."""
-    cache_path = "data/customs_cache.csv"
+    """(월 x 대분류) 단위의 초미세 병렬화로 로딩 속도를 극대화합니다."""
     if not os.path.exists("data"): os.makedirs("data")
     
     end_date = datetime.now()
@@ -66,79 +65,82 @@ def load_data(months=13):
     dates.sort()
 
     ict_items = data_processor.ICT_DETAIL_ITEMS
-    all_results = []
+    bulk_prefixes = ["84", "85", "90"]
+    tasks = [(d, p) for d in dates for p in bulk_prefixes]
+    total_tasks = len(tasks)
     
-    with st.status("🚀 실시간 통계 동기화 및 최적화 중...", expanded=True) as status:
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_date = {executor.submit(fetch_month_bulk, d): d for d in dates}
-            for future in as_completed(future_to_date):
-                d = future_to_date[future]
+    # 결과를 담을 딕셔너리 (월별 합산용)
+    raw_data_map = {d: [] for d in dates}
+    
+    with st.status("⚡ 초고속 실시간 데이터 동기화 중...", expanded=True) as status:
+        pbar = st.progress(0, text="데이터 수집 준비 중...")
+        
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            future_to_task = {executor.submit(client.fetch_monthly_data, d, p): (d, p) for d, p in tasks}
+            
+            completed = 0
+            for future in as_completed(future_to_task):
+                d, p = future_to_task[future]
                 try:
-                    df_month_raw = future.result()
-                    if not df_month_raw.empty:
-                        for name, code in ict_items.items():
-                            mask = df_month_raw['hs_code'].str.startswith(code[:6])
-                            df_match = df_month_raw[mask].copy()
-                            if not df_match.empty:
-                                row = df_match.iloc[0].copy()
-                                row['exp_amount'] = df_match['exp_amount'].sum()
-                                row['imp_amount'] = df_match['imp_amount'].sum()
-                                row['item_name'] = name
-                                row['year_month'] = d
-                                all_results.append(pd.DataFrame([row]))
-                    st.write(f"✅ {d[:4]}년 {d[4:]}월 데이터 구축 완료")
+                    df_part, _ = future.result()
+                    if df_part is not None and not df_part.empty:
+                        raw_data_map[d].append(df_part)
                 except Exception as e:
-                    st.error(f"❌ {d} 연동 실패: {e}")
-        status.update(label="✅ 데이터 최적화 로드 완료", state="complete", expanded=False)
+                    st.warning(f"⚠️ {d} - {p} 연동 누락: {e}")
+                
+                completed += 1
+                progress = int((completed / total_tasks) * 100)
+                pbar.progress(progress, text=f"📊 ICT 실적 수집 중... ({progress}%)")
+        
+        # 수집된 벌크 데이터를 ICT 품목으로 정밀 필터링 및 합산
+        all_results = []
+        for d, df_list in raw_data_map.items():
+            if not df_list: continue
+            df_month_raw = pd.concat(df_list, ignore_index=True)
+            for name, code in ict_items.items():
+                mask = df_month_raw['hs_code'].str.startswith(code[:6])
+                df_match = df_month_raw[mask].copy()
+                if not df_match.empty:
+                    row = df_match.iloc[0].copy()
+                    row['exp_amount'] = df_match['exp_amount'].sum()
+                    row['imp_amount'] = df_match['imp_amount'].sum()
+                    row['item_name'] = name
+                    row['year_month'] = d
+                    all_results.append(pd.DataFrame([row]))
+        
+        status.update(label="✅ 데이터 동기화 및 최적화 완료", state="complete", expanded=False)
+        pbar.empty()
 
     if not all_results: return pd.DataFrame()
-    combined = pd.concat(all_results, ignore_index=True)
-    combined = processor.categorize_data(combined)
-    return combined
+    return processor.categorize_data(pd.concat(all_results, ignore_index=True))
 
 @st.cache_data(ttl=3600)
-def load_category_history(years=10):
-    """최근 10년 대분류별 데이터를 병렬 로드합니다 (역사 통계)."""
-    cache_path = "data/category_history_cache.csv"
+def load_category_history(years=3): # 검색 범위를 3년으로 줄여 현실화
+    """최근 역사 데이터를 병렬 로드하고 로컬 캐시를 활용합니다."""
+    cache_path = "data/history_v2_cache.csv"
     if os.path.exists(cache_path):
-        try: 
-            cache_df = pd.read_csv(cache_path, dtype={'year_month': str})
-            return cache_df
-        except Exception: pass
+        try: return pd.read_csv(cache_path, dtype={'year_month': str})
+        except: pass
 
-    months = years * 12
     end_date = datetime.now()
-    dates = [(end_date - timedelta(days=30*i)).strftime("%Y%m") for i in range(months)]
-    dates.sort()
-
-    cat_prefixes = {
-        "전자부품": "111", "컴퓨터 및 주변기기": "121", 
-        "정보통신응용기반기기": "151", "방송장비": "131", 
-        "통신장비": "141", "음향 및 영상기기": "161"
-    }
+    dates = [(end_date - timedelta(days=30*i)).strftime("%Y%m") for i in range(years * 12)]
     
-    def fetch_cat_year(d):
-        month_res = []
-        # 최적화를 위해 월별로 주요 ICT 접두사 데이터 수집
-        df_bulk, _ = client.fetch_monthly_data(d, "85") # 가전/전자 위주
-        if df_bulk is not None and not df_bulk.empty:
-            for cat_name, prefix in cat_prefixes.items():
-                # 간단한 카테고리 매핑 (실제 데이터에 맞게 조정 가능)
-                amt = df_bulk['exp_amount'].sum() / 6 # 샘플 분배
-                month_res.append({'year_month': d, 'category': cat_name, 'exp_amount': amt})
-        return month_res
+    def fetch_fast_cat(d):
+        df, _ = client.fetch_monthly_data(d, "85")
+        if df is not None:
+            return [{'year_month': d, 'category': 'ICT합계', 'exp_amount': df['exp_amount'].sum()}]
+        return []
 
-    all_cat_data = []
+    all_hist = []
     with ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_date = {executor.submit(fetch_cat_year, d): d for d in dates[-24:]} # 최근 2년 우선
-        for future in as_completed(future_to_date):
-            res = future.result()
-            if res: all_cat_data.extend(res)
-
-    if not all_cat_data: return pd.DataFrame()
-    combined = pd.DataFrame(all_cat_data)
-    combined.to_csv(cache_path, index=False)
-    return combined
+        futures = [executor.submit(fetch_fast_cat, d) for d in dates]
+        for f in as_completed(futures):
+            res = f.result()
+            if res: all_hist.extend(res)
+            
+    df_h = pd.DataFrame(all_hist) if all_hist else pd.DataFrame()
+    if not df_h.empty: df_h.to_csv(cache_path, index=False)
+    return df_h
 
 # 헤더 섹션 (CI 로고 포함)
 logo_path = "assets/metrix_logo.png"
