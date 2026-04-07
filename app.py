@@ -136,16 +136,16 @@ if os.path.exists(logo_path):
         logo_html = f'<img src="data:image/png;base64,{data}" style="height:35px; margin-left:15px;">'
 
 st.markdown(f"""
-    <div style="display:flex; justify-content:space-between; align-items:center; background:linear-gradient(90deg, #f8fafc 0%, #ffffff 100%); padding:15px 25px; border-bottom:2px solid #3b82f6; margin-bottom:25px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-        <div style="display:flex; align-items:center;">
-            <h1 style="margin:0; font-size:1.6rem; color:#1e3a8a; font-weight:800; letter-spacing:-0.5px;">2026년 ICT통계조사 실사 용역</h1>
-            {logo_html}
-        </div>
-        <div style="text-align:right;">
-            <span style="font-size:0.9rem; font-weight:700; color:#64748b;">ICT 수출입 실적 모니터링 시스템</span><br>
-            <span style="font-size:0.75rem; color:#94a3b8;">Data Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</span>
-        </div>
-    </div>
+<div style="display:flex; justify-content:space-between; align-items:center; background:linear-gradient(90deg, #f8fafc 0%, #ffffff 100%); padding:15px 25px; border-bottom:2px solid #3b82f6; margin-bottom:25px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+<div style="display:flex; align-items:center;">
+<h1 style="margin:0; font-size:1.6rem; color:#1e3a8a; font-weight:800; letter-spacing:-0.5px;">2026년 ICT통계조사 실사 용역</h1>
+{logo_html}
+</div>
+<div style="text-align:right;">
+<span style="font-size:0.9rem; font-weight:700; color:#64748b;">ICT 수출입 실적 모니터링 시스템</span><br>
+<span style="font-size:0.75rem; color:#94a3b8;">Data Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</span>
+</div>
+</div>
 """, unsafe_allow_html=True)
 
 # 사이드바 및 데이터 로드
@@ -200,21 +200,21 @@ with tabs[0]:
                     
                     with cols[i]:
                         st.markdown(f"""
-                            <div class="metric-card">
-                                <div class="metric-label">{cat_name}</div>
-                                <div class="metric-value">${curr_val:,.0f}M</div>
-                                <div class="delta-row">
-                                    <div class="delta-box">
-                                        <div class="delta-tag">전월비(MoM)</div>
-                                        <div class="delta-val {'up' if mom_rate >=0 else 'down'}">{'▲' if mom_rate >=0 else '▼'} {abs(mom_rate):.1f}%</div>
-                                    </div>
-                                    <div class="delta-box">
-                                        <div class="delta-tag">전년비(YoY)</div>
-                                        <div class="delta-val {'yoy-up' if yoy_rate >=0 else 'yoy-down'}">{'▲' if yoy_rate >=0 else '▼'} {abs(yoy_rate):.1f}%</div>
-                                    </div>
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
+<div class="metric-card">
+<div class="metric-label">{cat_name}</div>
+<div class="metric-value">${curr_val:,.0f}M</div>
+<div class="delta-row">
+<div class="delta-box">
+<div class="delta-tag">전월비(MoM)</div>
+<div class="delta-val {'up' if mom_rate >=0 else 'down'}">{'▲' if mom_rate >=0 else '▼'} {abs(mom_rate):.1f}%</div>
+</div>
+<div class="delta-box">
+<div class="delta-tag">전년비(YoY)</div>
+<div class="delta-val {'yoy-up' if yoy_rate >=0 else 'yoy-down'}">{'▲' if yoy_rate >=0 else '▼'} {abs(yoy_rate):.1f}%</div>
+</div>
+</div>
+</div>
+""", unsafe_allow_html=True)
                         # 미니 차트 (최근 트렌드)
                         c_df = df[df['category'] == cat_name].groupby('year_month')['exp_amount'].sum().reset_index()
                         fig = px.line(c_df, x='year_month', y='exp_amount', height=100)
@@ -257,12 +257,12 @@ with tabs[3]:
         for i, (idx, s_row) in enumerate(s_growth.iterrows()):
             with cols_s[i]:
                 st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-label">{s_row['service_name']}</div>
-                        <div class="metric-value">${s_row['exp_amount']:,.1f}M</div>
-                        <div class="delta-box">
-                            <div class="delta-tag">전년비(YoY)</div>
-                            <div class="delta-val up">{s_row['yoy_rate']:.1f}%</div>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
+<div class="metric-card">
+<div class="metric-label">{s_row['service_name']}</div>
+<div class="metric-value">${s_row['exp_amount']:,.1f}M</div>
+<div class="delta-box">
+<div class="delta-tag">전년비(YoY)</div>
+<div class="delta-val up">{s_row['yoy_rate']:.1f}%</div>
+</div>
+</div>
+""", unsafe_allow_html=True)
