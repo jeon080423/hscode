@@ -171,12 +171,20 @@ n_months = months_map[period]
 with st.spinner('실시간 데이터를 분석 중입니다...'):
     df = load_data(13) # 품목용 13개월
     df_history = load_category_history(10) # 역사용 10년
-    all_months = sorted(df['year_month'].unique())
+    
+    if not df.empty and 'year_month' in df.columns:
+        all_months = sorted(df['year_month'].unique())
+    else:
+        all_months = []
+    
     df_service = processor.get_service_trade_data(all_months)
 
 display_months = all_months[-n_months:] if all_months else []
-df_display = df[df['year_status'] == 'current'] if not df.empty else df # categorize_data에서 처리됨
-df_curr_display = df[df['year_month'].isin(display_months)]
+df_display = df.copy() if not df.empty else pd.DataFrame()
+if not df.empty and 'year_month' in df.columns:
+    df_curr_display = df[df['year_month'].isin(display_months)]
+else:
+    df_curr_display = pd.DataFrame()
 
 # 탭 구성
 tabs = st.tabs(["📌 품목군별 분석", "📈 품목별 상세", "📊 10개년 성장률", "☁️ 서비스 무역"])
