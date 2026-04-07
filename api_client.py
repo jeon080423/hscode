@@ -32,7 +32,8 @@ class CustomsAPIClient:
             response = requests.get(self.url, params=params, timeout=15)
             if response.status_code == 200:
                 if "<item>" in response.text:
-                    return self.parse_xml(response.text)
+                    result = self.parse_xml(response.text)
+                    return result, None
                 else:
                     return pd.DataFrame(), None
             else:
