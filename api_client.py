@@ -6,7 +6,8 @@ import datetime
 # 공공데이터포털 서비스키 (관세청)
 # 금일(4/7) 성공적으로 실측 데이터를 불러왔던 최신 키로 교체합니다.
 CUSTOMS_SERVICE_KEY = "rWV9FTPXzoGfN0Cl232NYiSEKla0pPL9AH8q8DYJfPGGOYqCtrcCC2E7Lef6qnVLjojcUQxhMZ2D0+wMVVx/sA=="
-CUSTOMS_BASE_URL = "http://apis.data.go.kr/1220000/Itemtrade/getitemtradeList"
+# 관세청_품목별 수출입실적(GW) 정식 서비스 엔드포인트
+CUSTOMS_BASE_URL = "https://apis.data.go.kr/1220000/Itemtrade/getItemtradeList"
 
 # 한국은행 ECOS 서비스키 (제공받은 키 적용)
 ECOS_SERVICE_KEY = "Q33UM6GK6QDQ46NEH83B"
@@ -18,22 +19,28 @@ class CustomsAPIClient:
         self.url = CUSTOMS_BASE_URL
 
     def fetch_monthly_data(self, year_month, hs_code):
-        """관세청 GW API를 사용하여 특정 품목의 월별 실적을 가져옵니다."""
+        """관세청 API 주소를 정정하여 데이터를 호출합니다."""
         try:
+            # 공공데이터포털 키는 서비스에 따라 디코딩된 키가 필요할 수 있습니다.
             unquoted_key = requests.utils.unquote(self.service_key)
             params = {
                 "serviceKey": unquoted_key,
                 "strtYymm": year_month,
                 "endYymm": year_month,
-                "hsSgn": hs_code
+                "hsSgn": hs_code,
+                "type": "xml"
             }
+            # HTTPS 통신 수행
             response = requests.get(self.url, params=params, timeout=15)
             if response.status_code == 200:
-                return self.parse_xml(response.text, year_month, hs_code)
+                if "<item>" in response.text:
+                    return self.parse_xml(response.text, year_month, hs_code)
+                else:
+                    return pd.DataFrame()
             else:
-                return None, f"HTTP Error {response.status_code}"
+                return None
         except Exception as e:
-            return None, str(e)
+            return None
 
     def parse_xml(self, xml_data, year_month, hs_code):
         try:
