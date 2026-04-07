@@ -19,9 +19,8 @@ class CustomsAPIClient:
         self.url = CUSTOMS_BASE_URL
 
     def fetch_monthly_data(self, year_month, hs_code):
-        """관세청 API 주소를 정정하여 데이터를 호출합니다."""
+        """본질적인 호출에 집중하며, 튜플 반환 형식을 엄격히 준수합니다."""
         try:
-            # 공공데이터포털 키는 서비스에 따라 디코딩된 키가 필요할 수 있습니다.
             unquoted_key = requests.utils.unquote(self.service_key)
             params = {
                 "serviceKey": unquoted_key,
@@ -30,17 +29,16 @@ class CustomsAPIClient:
                 "hsSgn": hs_code,
                 "type": "xml"
             }
-            # HTTPS 통신 수행
             response = requests.get(self.url, params=params, timeout=15)
             if response.status_code == 200:
                 if "<item>" in response.text:
                     return self.parse_xml(response.text, year_month, hs_code)
                 else:
-                    return pd.DataFrame()
+                    return pd.DataFrame(), None
             else:
-                return None
+                return None, f"HTTP {response.status_code}"
         except Exception as e:
-            return None
+            return None, str(e)
 
     def parse_xml(self, xml_data, year_month, hs_code):
         try:
