@@ -127,7 +127,7 @@ def load_category_history(years=10):
     return combined
 
 # 헤더 섹션 (CI 로고 포함)
-logo_path = "resources/ci_logo.png"
+logo_path = "assets/metrix_logo.png"
 logo_html = ""
 import os
 if os.path.exists(logo_path):
