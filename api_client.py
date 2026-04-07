@@ -18,21 +18,21 @@ class CustomsAPIClient:
         self.service_key = service_key
         self.url = CUSTOMS_BASE_URL
 
-    def fetch_monthly_data(self, year_month, hs_code):
-        """본질적인 호출에 집중하며, 튜플 반환 형식을 엄격히 준수합니다."""
+    def fetch_monthly_data(self, start_month, end_month, hs_code):
+        """기간별 품목 수출입 실적을 조회합니다."""
         try:
             unquoted_key = requests.utils.unquote(self.service_key)
             params = {
                 "serviceKey": unquoted_key,
-                "strtYymm": year_month,
-                "endYymm": year_month,
+                "strtYymm": start_month,
+                "endYymm": end_month,
                 "hsSgn": hs_code,
                 "type": "xml"
             }
             response = requests.get(self.url, params=params, timeout=15)
             if response.status_code == 200:
                 if "<item>" in response.text:
-                    return self.parse_xml(response.text, year_month, hs_code)
+                    return self.parse_xml(response.text)
                 else:
                     return pd.DataFrame(), None
             else:
@@ -40,7 +40,7 @@ class CustomsAPIClient:
         except Exception as e:
             return None, str(e)
 
-    def parse_xml(self, xml_data, year_month, hs_code):
+    def parse_xml(self, xml_data):
         try:
             root = ET.fromstring(xml_data)
             header = root.find('header')
@@ -50,14 +50,16 @@ class CustomsAPIClient:
 
             items = []
             for item in root.findall('.//item'):
-                hs_val = item.findtext('hsCode') or item.findtext('hsSgn')
-                name_val = item.findtext('itemNm') or item.findtext('statItemNm')
-                exp_val = item.findtext('expAmt') or item.findtext('expDlAmt') or '0'
-                imp_val = item.findtext('impAmt') or item.findtext('impDlAmt') or '0'
+                # XML 태그에서 기준월(statYymm)과 HS코드 검색
+                stat_month = item.findtext('statYymm') or ""
+                hs_val = item.findtext('hsSgn') or item.findtext('hsCode')
+                name_val = item.findtext('statItemNm') or item.findtext('itemNm')
+                exp_val = item.findtext('expDlAmt') or item.findtext('expAmt') or '0'
+                imp_val = item.findtext('impDlAmt') or item.findtext('impAmt') or '0'
                 
-                if hs_val:
+                if hs_val and stat_month:
                     items.append({
-                        'year_month': year_month,
+                        'year_month': stat_month,
                         'hs_code': hs_val,
                         'item_name': name_val,
                         'exp_amount': float(str(exp_val).replace(',', '')),

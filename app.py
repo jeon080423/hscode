@@ -42,52 +42,74 @@ client = api_client.CustomsAPIClient()
 ecos_client = api_client.ECOSAPIClient()
 processor = data_processor.DataProcessor()
 
+import concurrent.futures
+
 @st.cache_data(ttl=3600)
 def load_data(months=13):
-    """데이터 로드 (Sparkline을 위해 13개월 이상 권장)"""
+    """병렬 처리를 통해 데이터를 고속으로 로드합니다."""
     end_date = datetime.now()
-    dates = [(end_date - timedelta(days=30*i)).strftime("%Y%m") for i in range(months)]
-    dates.sort()
-
-    all_data = []
+    start_date = (end_date - timedelta(days=30 * (months - 1)))
+    
+    start_month = start_date.strftime("%Y%m")
+    end_month = end_date.strftime("%Y%m")
+    
     items_list = list(data_processor.ICT_DETAIL_ITEMS.items())
-
-    # 실계측 데이터 로드 
-    with st.status("📊 관세청 실측 데이터 동기화 중...", expanded=False) as status:
-        for d in dates:
-            month_results = []
-            for name, code in items_list:
-                df_part, _ = client.fetch_monthly_data(d, code)
-                if df_part is not None and not df_part.empty:
-                    row = df_part.iloc[0].copy()
-                    row['item_name'] = name
-                    row['year_month'] = d
-                    row['hs_code'] = code
-                    month_results.append(pd.DataFrame([row]))
-            
-            if month_results:
-                all_data.append(pd.concat(month_results, ignore_index=True))
-            else:
-                # Fallback Simulation for missing months
-                year = int(d) // 100
-                month = int(d) % 100
+    total_items = len(items_list)
+    
+    all_rows = []
+    
+    # 병렬 호출 함수 정의
+    def fetch_item_data(item_info):
+        name, code = item_info
+        df_part, _ = client.fetch_monthly_data(start_month, end_month, code)
+        
+        if df_part is not None and not df_part.empty:
+            df_part['item_name'] = name
+            return df_part
+        else:
+            # Fallback: 시뮬레이션 데이터 생성 (API 실패 시)
+            mock_rows = []
+            curr = start_date
+            while curr <= end_date:
+                d = curr.strftime("%Y%m")
+                year = int(d[:4])
+                month = int(d[4:])
                 growth_factor = (year - 2015) * 150
-                df_mock = pd.DataFrame({
+                val = max(50, int((abs(hash(name)) % 3000) + 200) + growth_factor * (0.5 + (abs(hash(name)) % 100)/100.0) + int(300 * math.sin((month + (abs(hash(name))%6)) * math.pi / 6)) + month * 5)
+                
+                mock_rows.append({
                     'year_month': d,
-                    'hs_code': [x[1] for x in items_list],
-                    'item_name': [x[0] for x in items_list],
-                    'exp_amount': [
-                        max(50, int((abs(hash(x[0])) % 3000) + 200) + growth_factor * (0.5 + (abs(hash(x[0])) % 100)/100.0) + int(300 * math.sin((month + (abs(hash(x[0]))%6)) * math.pi / 6)) + month * 5)
-                        for x in items_list
-                    ],
-                    'imp_amount': [100 + (hash(x[0]) % 500) for x in items_list],
-                    'trade_balance': [0] * len(items_list)
+                    'hs_code': code,
+                    'item_name': name,
+                    'exp_amount': val,
+                    'imp_amount': 100 + (hash(name) % 500),
+                    'trade_balance': val - (100 + (hash(name) % 500))
                 })
-                df_mock['trade_balance'] = df_mock['exp_amount'] - df_mock['imp_amount']
-                all_data.append(df_mock)
-        status.update(label="✅ 동기화 완료", state="complete")
+                curr += timedelta(days=31)
+                if curr.day > 28: curr = curr.replace(day=1) + timedelta(days=32)
+                curr = curr.replace(day=1)
+            return pd.DataFrame(mock_rows)
 
-    combined = pd.concat(all_data, ignore_index=True)
+    # 병렬 실행 (최대 32개 스레드)
+    with st.status("📊 ICT 품목별 데이터 병렬 동기화 중...", expanded=True) as status:
+        progress_bar = st.progress(0)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+            future_to_item = {executor.submit(fetch_item_data, item): item for item in items_list}
+            completed = 0
+            for future in concurrent.futures.as_completed(future_to_item):
+                res_df = future.result()
+                if res_df is not None:
+                    all_rows.append(res_df)
+                completed += 1
+                progress_bar.progress(completed / total_items)
+        
+        status.update(label="✅ 고속 데이터 로드 완료", state="complete")
+        progress_bar.empty()
+
+    if not all_rows:
+        return pd.DataFrame()
+        
+    combined = pd.concat(all_rows, ignore_index=True)
     combined = processor.categorize_data(combined)
     return combined
 
@@ -97,6 +119,7 @@ all_months = sorted(df['year_month'].unique())
 display_months = all_months[-12:] # 최근 12개월
 df_display = df[df['year_month'].isin(display_months)]
 
+# 서비스 무역 데이터 생성 (기존 방식 유지하되 데이터 부족 시 대응)
 df_service = processor.get_service_trade_data(all_months, ecos_client)
 df_service_display = df_service[df_service['year_month'].isin(display_months)]
 
