@@ -54,39 +54,43 @@ def fetch_month_bulk(date_str):
             month_data.append(df_range)
     return pd.concat(month_data, ignore_index=True) if month_data else pd.DataFrame()
 
-# 관세청 HS코드와 ICT 품목 분류 간의 가교 매핑 (MTI 코드 불일치 해결용)
+# 관세청 HS코드(4자리)와 ICT 품목 분류 간의 매핑
+# API 성능과 정확도를 위해 ICT 핵심 4자리 HS코드를 타겟팅합니다.
 HS_TO_ICT_MAPPING = {
     "반도체": "8542",
     "휴대폰": "8517",
     "컴퓨터": "8471",
-    "디스플레이": "8524",
+    "디스플레이부품": "8529",
     "보조기억장치(SSD)": "847170",
-    "센서/개별소자": "8541",
-    "유선통신기기": "851762",
+    "개별소자": "8541",
+    "유선통신기기": "85176",
     "방송장비": "8525",
     "영상기기": "8528",
-    "컴퓨터부품": "8473"
+    "컴퓨터부품": "8473",
+    "정밀기기/LCD": "9013"
 }
 
 @st.cache_data(ttl=3600)
 def load_data(months=13):
-    """HS-ICT 매핑을 활용하여 데이터를 정밀 필터링 및 복구합니다."""
+    """HS 4자리 정밀 타겟팅 및 병렬 처리를 통해 데이터를 전면 복구합니다."""
     if not os.path.exists("data"): os.makedirs("data")
     
     end_date = datetime.now()
-    base_date = end_date - timedelta(days=20) 
+    # 데이터 집계 주기를 고려하여 45일 전(최근 확정월)부터 소급
+    base_date = end_date - timedelta(days=45) 
     dates = [(base_date - timedelta(days=30*i)).strftime("%Y%m") for i in range(months)]
     dates.sort()
 
-    # bulk_prefixes는 API 호출 시 사용
-    bulk_prefixes = ["84", "85", "90"]
-    tasks = [(d, p) for d in dates for p in bulk_prefixes]
+    # ICT 핵심 HS4 코드 리스트
+    target_prefixes = ["8542", "8517", "8471", "8541", "8529", "8528", "8525", "9013"]
+    tasks = [(d, p) for d in dates for p in target_prefixes]
     total_tasks = len(tasks)
     
     raw_data_map = {d: [] for d in dates}
+    api_errors = []
     
-    with st.status("⚡ 실시간 데이터 복구 및 동기화 중...", expanded=True) as status:
-        pbar = st.progress(0, text="글로벌 통계 서버 접속 중...")
+    with st.status("📡 글로벌 관세 통계 서버 정밀 동기화 중...", expanded=True) as status:
+        pbar = st.progress(0, text="데이터 채널 확보 중...")
         
         with ThreadPoolExecutor(max_workers=15) as executor:
             future_to_task = {executor.submit(client.fetch_monthly_data, d, p): (d, p) for d, p in tasks}
@@ -95,14 +99,17 @@ def load_data(months=13):
             for future in as_completed(future_to_task):
                 d, p = future_to_task[future]
                 try:
-                    df_part, _ = future.result()
+                    df_part, err = future.result()
                     if df_part is not None and not df_part.empty:
                         raw_data_map[d].append(df_part)
-                except Exception: pass
+                    elif err:
+                        api_errors.append(f"{d}({p}): {err}")
+                except Exception as e:
+                    api_errors.append(f"{d}({p}): System Error")
                 
                 completed += 1
                 progress = int((completed / total_tasks) * 100)
-                pbar.progress(progress, text=f"📊 데이터 매핑 및 복구 중... ({progress}%)")
+                pbar.progress(progress, text=f"📊 ICT 핵심 실적 분석 중... ({progress}%)")
         
         all_results = []
         total_raw_count = 0
@@ -111,12 +118,9 @@ def load_data(months=13):
             df_month_raw = pd.concat(df_list, ignore_index=True)
             total_raw_count += len(df_month_raw)
             
-            # 디버그: 데이터 타입 강제 변환 및 전처리
-            if 'hs_code' in df_month_raw.columns:
-                df_month_raw['hs_code'] = df_month_raw['hs_code'].astype(str).str.strip()
+            # 타입 강제 변환 및 전처리
+            df_month_raw['hs_code'] = df_month_raw['hs_code'].astype(str).str.strip()
             
-            # MTI 코드 대조 대신 HS 매핑 기반으로 품목 재정립
-            match_count = 0
             for item_name, hs_prefix in HS_TO_ICT_MAPPING.items():
                 mask = df_month_raw['hs_code'].str.startswith(hs_prefix)
                 df_match = df_month_raw[mask].copy()
@@ -128,21 +132,18 @@ def load_data(months=13):
                     row['year_month'] = d
                     row['hs_code'] = hs_prefix
                     all_results.append(pd.DataFrame([row]))
-                    match_count += 1
-            
-        status.update(label=f"✅ 데이터 복구 완료 (수집: {total_raw_count}건, 매칭: {len(all_results)}건)", state="complete", expanded=False)
+        
+        status.update(label=f"✅ 데이터 동기화 완료 (수집: {total_raw_count}건, 매칭: {len(all_results)}건)", state="complete", expanded=False)
         pbar.empty()
         
-        if len(all_results) == 0 and total_raw_count > 0:
-            st.error(f"⚠️ {total_raw_count}건의 데이터를 가져왔으나, ICT 품목 매핑에 실패했습니다. (HS코드 형식 확인 필요)")
-            st.write("수집된 HS코드 샘플:", df_month_raw['hs_code'].unique()[:10])
-        elif total_raw_count == 0:
-            st.error("❌ 관세청 API로부터 데이터를 한 건도 가져오지 못했습니다. (서비스키 또는 서버 상태 확인 필요)")
+        if api_errors:
+            with st.expander("⚠️ 일부 데이터 통신 상태 확인 (클릭)"):
+                for err in list(set(api_errors))[:5]: st.write(err)
 
     if not all_results: return pd.DataFrame()
     df_combined = pd.concat(all_results, ignore_index=True)
     
-    # 카테고리 보정 로직 (HS 기반 재매핑)
+    # 카테고리 매핑 보정
     def fix_category(row):
         hs = str(row['hs_code'])
         if hs.startswith('8542'): return "전자부품"
