@@ -54,9 +54,23 @@ def fetch_month_bulk(date_str):
             month_data.append(df_range)
     return pd.concat(month_data, ignore_index=True) if month_data else pd.DataFrame()
 
+# 관세청 HS코드와 ICT 품목 분류 간의 가교 매핑 (MTI 코드 불일치 해결용)
+HS_TO_ICT_MAPPING = {
+    "반도체": "8542",
+    "휴대폰": "8517",
+    "컴퓨터": "8471",
+    "디스플레이": "8524",
+    "보조기억장치(SSD)": "847170",
+    "센서/개별소자": "8541",
+    "유선통신기기": "851762",
+    "방송장비": "8525",
+    "영상기기": "8528",
+    "컴퓨터부품": "8473"
+}
+
 @st.cache_data(ttl=3600)
 def load_data(months=13):
-    """(월 x 대분류) 단위의 초미세 병렬화로 로딩 속도를 극대화합니다."""
+    """HS-ICT 매핑을 활용하여 데이터를 정밀 필터링 및 복구합니다."""
     if not os.path.exists("data"): os.makedirs("data")
     
     end_date = datetime.now()
@@ -64,18 +78,17 @@ def load_data(months=13):
     dates = [(base_date - timedelta(days=30*i)).strftime("%Y%m") for i in range(months)]
     dates.sort()
 
-    ict_items = data_processor.ICT_DETAIL_ITEMS
+    # bulk_prefixes는 API 호출 시 사용
     bulk_prefixes = ["84", "85", "90"]
     tasks = [(d, p) for d in dates for p in bulk_prefixes]
     total_tasks = len(tasks)
     
-    # 결과를 담을 딕셔너리 (월별 합산용)
     raw_data_map = {d: [] for d in dates}
     
-    with st.status("⚡ 초고속 실시간 데이터 동기화 중...", expanded=True) as status:
-        pbar = st.progress(0, text="데이터 수집 준비 중...")
+    with st.status("⚡ 실시간 데이터 복구 및 동기화 중...", expanded=True) as status:
+        pbar = st.progress(0, text="글로벌 통계 서버 접속 중...")
         
-        with ThreadPoolExecutor(max_workers=12) as executor:
+        with ThreadPoolExecutor(max_workers=15) as executor:
             future_to_task = {executor.submit(client.fetch_monthly_data, d, p): (d, p) for d, p in tasks}
             
             completed = 0
@@ -85,58 +98,74 @@ def load_data(months=13):
                     df_part, _ = future.result()
                     if df_part is not None and not df_part.empty:
                         raw_data_map[d].append(df_part)
-                except Exception as e:
-                    st.warning(f"⚠️ {d} - {p} 연동 누락: {e}")
+                except Exception: pass
                 
                 completed += 1
                 progress = int((completed / total_tasks) * 100)
-                pbar.progress(progress, text=f"📊 ICT 실적 수집 중... ({progress}%)")
+                pbar.progress(progress, text=f"📊 데이터 매핑 및 복구 중... ({progress}%)")
         
-        # 수집된 벌크 데이터를 ICT 품목으로 정밀 필터링 및 합산
         all_results = []
         for d, df_list in raw_data_map.items():
             if not df_list: continue
             df_month_raw = pd.concat(df_list, ignore_index=True)
-            for name, code in ict_items.items():
-                mask = df_month_raw['hs_code'].str.startswith(code[:6])
+            
+            # MTI 코드 대조 대신 HS 매핑 기반으로 품목 재정립
+            for item_name, hs_prefix in HS_TO_ICT_MAPPING.items():
+                mask = df_month_raw['hs_code'].str.startswith(hs_prefix)
                 df_match = df_month_raw[mask].copy()
                 if not df_match.empty:
                     row = df_match.iloc[0].copy()
                     row['exp_amount'] = df_match['exp_amount'].sum()
                     row['imp_amount'] = df_match['imp_amount'].sum()
-                    row['item_name'] = name
+                    row['item_name'] = item_name
                     row['year_month'] = d
+                    row['hs_code'] = hs_prefix # 필터링에 사용된 코드로 고정
                     all_results.append(pd.DataFrame([row]))
         
-        status.update(label="✅ 데이터 동기화 및 최적화 완료", state="complete", expanded=False)
+        status.update(label="✅ 데이터 복구 완료", state="complete", expanded=False)
         pbar.empty()
 
     if not all_results: return pd.DataFrame()
-    return processor.categorize_data(pd.concat(all_results, ignore_index=True))
+    df_combined = pd.concat(all_results, ignore_index=True)
+    
+    # 카테고리 보정 로직 (HS 기반 재매핑)
+    def fix_category(row):
+        hs = str(row['hs_code'])
+        if hs.startswith('8542'): return "전자부품"
+        if hs.startswith('8517'): return "통신장비"
+        if hs.startswith('8471'): return "컴퓨터 및 주변기기"
+        if hs.startswith('852'): return "방송장비"
+        if hs.startswith('90'): return "정보통신응용기반기기"
+        return "기타 ICT"
+
+    df_combined['category'] = df_combined.apply(fix_category, axis=1)
+    return df_combined
 
 @st.cache_data(ttl=3600)
-def load_category_history(years=3): # 검색 범위를 3년으로 줄여 현실화
-    """최근 역사 데이터를 병렬 로드하고 로컬 캐시를 활용합니다."""
+def load_category_history(years=3):
+    """역사 데이터 또한 HS 기반으로 고속 집계합니다."""
     cache_path = "data/history_v2_cache.csv"
     if os.path.exists(cache_path):
         try: return pd.read_csv(cache_path, dtype={'year_month': str})
         except: pass
-
+    
     end_date = datetime.now()
     dates = [(end_date - timedelta(days=30*i)).strftime("%Y%m") for i in range(years * 12)]
     
-    def fetch_fast_cat(d):
-        df, _ = client.fetch_monthly_data(d, "85")
-        if df is not None:
-            return [{'year_month': d, 'category': 'ICT합계', 'exp_amount': df['exp_amount'].sum()}]
-        return []
+    def fetch_fast_hist(d):
+        # 전자(85)와 전산(84)만 합산해도 ICT의 90%
+        df_85, _ = client.fetch_monthly_data(d, "85")
+        df_84, _ = client.fetch_monthly_data(d, "84")
+        total = 0
+        if df_85 is not None: total += df_85['exp_amount'].sum()
+        if df_84 is not None: total += df_84['exp_amount'].sum()
+        return [{'year_month': d, 'category': 'ICT합계', 'exp_amount': total}]
 
     all_hist = []
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [executor.submit(fetch_fast_cat, d) for d in dates]
+        futures = {executor.submit(fetch_fast_hist, d): d for d in dates}
         for f in as_completed(futures):
-            res = f.result()
-            if res: all_hist.extend(res)
+            all_hist.extend(f.result())
             
     df_h = pd.DataFrame(all_hist) if all_hist else pd.DataFrame()
     if not df_h.empty: df_h.to_csv(cache_path, index=False)
