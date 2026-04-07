@@ -71,8 +71,8 @@ HS_TO_ICT_MAPPING = {
 }
 
 @st.cache_data(ttl=3600)
-def load_data(months=13):
-    """HS 4자리 정밀 타겟팅 및 병렬 처리를 통해 데이터를 전면 복구합니다."""
+def load_data_v4(months=13):
+    """HS 4자리 정밀 타겟팅 및 병렬 처리를 통해 데이터를 전면 복구합니다 (v4)."""
     if not os.path.exists("data"): os.makedirs("data")
     
     end_date = datetime.now()
@@ -157,8 +157,8 @@ def load_data(months=13):
     return df_combined
 
 @st.cache_data(ttl=3600)
-def load_category_history(years=3):
-    """역사 데이터 또한 HS 기반으로 고속 집계합니다."""
+def load_history_v4(years=3):
+    """역사 데이터 또한 HS 기반으로 고속 집계합니다 (v4)."""
     cache_path = "data/history_v2_cache.csv"
     if os.path.exists(cache_path):
         try: return pd.read_csv(cache_path, dtype={'year_month': str})
@@ -226,9 +226,9 @@ st.sidebar.info("""
 - 경제통계시스템(ECOS) API
 """)
 
-with st.spinner('실시간 데이터를 분석 중입니다...'):
-    df = load_data(13) # 품목용 13개월
-    df_history = load_category_history(10) # 역사용 10년
+with st.spinner('실공 통계를 동기화 중입니다...'):
+    df = load_data_v4(13) # 품목용 13개월
+    df_history = load_history_v4(3) # 역사 데이터 3년
     
     if not df.empty and 'year_month' in df.columns:
         all_months = sorted(df['year_month'].unique())
