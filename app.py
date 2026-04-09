@@ -210,7 +210,7 @@ with tab1:
                                 <div style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:5px;">
                                     {int(row['exp_amount_curr']):,} <span style="font-size:0.7rem; font-weight:400; color:#64748b;">M$</span>
                                 </div>
-                                <div class="delta-row" style="display:flex; flex-direction:column; align-items:flex-start; gap:2px;">
+                                <div class="delta-row" style="display:flex; flex-direction:row; align-items:center; gap:6px;">
                                     <span class="delta-badge {'up' if mom >=0 else 'down'}">{"▲" if mom >=0 else "▼"} {abs(mom):.1f}% MoM</span>
                                     <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}">{"▲" if yoy >=0 else "▼"} {abs(yoy):.1f}% YoY</span>
                                 </div>
