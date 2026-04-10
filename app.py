@@ -34,6 +34,11 @@ st.markdown("""
     .yoy-down { color: #d97706; background-color: #fffbeb; }
     h1, h2, h3 { color: #1e3a8a; }
     .section-header { border-bottom: 2px solid #1e3a8a; padding-bottom: 5px; margin-bottom: 20px; color: #1e3a8a; font-size: 1.5rem; font-weight: 700; }
+    /* Streamlit 컨테이너 슬림화 */
+    [data-testid="stVerticalBlockBordered"] {
+        padding: 5px 10px !important;
+        margin-bottom: 0px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -180,22 +185,37 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     st.markdown(f'<div class="section-header">📌 산업군별 주요 품목 현황 ({last_month[:4]}.{last_month[4:]})</div>', unsafe_allow_html=True)
     
-    # 글로벌 필터 (산업군별 섹션화로 개편되었지만 검색은 통합 제공)
-    search_query = st.text_input("🔍 품목 검색 (품목명 또는 HS코드)", placeholder="검색어를 입력하세요.")
+    # 필터 영역 (검색창 + 대분류 필터)
+    f_col1, f_col2 = st.columns([1, 1])
+    with f_col1:
+        search_query = st.text_input("🔍 품목 검색 (품목명 또는 HS코드)", placeholder="검색어를 입력하세요.")
+    with f_col2:
+        categories = list(data_processor.ICT_CATEGORIES.keys())
+        selected_categories = st.multiselect("📂 대분류 필터", options=categories, default=categories)
     
-    # 각 산업군(카테고리)별로 섹션 생성
-    categories = list(data_processor.ICT_CATEGORIES.keys())
+    # 필터링 적용
+    filtered_df = final_df[final_df['category'].isin(selected_categories)]
+    if search_query.strip():
+        q = search_query.strip().lower()
+        filtered_df = filtered_df[filtered_df['item_name'].str.lower().str.contains(q) | filtered_df['hs_code'].str.contains(q)]
     
-    for cat in categories:
-        cat_df = final_df[final_df['category'] == cat]
-        if search_query.strip():
-            q = search_query.strip().lower()
-            cat_df = cat_df[cat_df['item_name'].str.lower().str.contains(q) | cat_df['hs_code'].str.contains(q)]
+    # 총 품목수 표시
+    st.markdown(f'<div style="font-size:0.9rem; color:#64748b; margin-bottom:15px; font-weight:600;">✅ 총 {len(filtered_df)}개 품목이 검색되었습니다.</div>', unsafe_allow_html=True)
+    
+    # 선택된 산업군(카테고리)별로 섹션 생성
+    for cat in selected_categories:
+        cat_df = filtered_df[filtered_df['category'] == cat]
         
         if cat_df.empty:
             continue
             
-        st.subheader(f"📂 {cat}")
+        # 헤더 텍스트 사이즈 축소 및 개수 표시
+        st.markdown(f"""
+            <div style="font-size: 0.85rem; font-weight: 700; color: #1e3a8a; margin-top:20px; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                <span>📂 {cat}</span>
+                <span style="font-size: 0.75rem; font-weight: 400; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 10px;">{len(cat_df)}개 품목</span>
+            </div>
+        """, unsafe_allow_html=True)
         
         # 5열 그리드
         COLS = 5
@@ -211,23 +231,23 @@ with tab1:
                 
                 with cols[i]:
                     with st.container(border=True):
-                        # 전체 카드 높이 제어를 위한 wrapper div (슬림형: 95px)
-                        st.markdown('<div style="height: 95px; overflow: hidden;">', unsafe_allow_html=True)
+                        # 전체 카드 높이 제어를 위한 wrapper div (초슬림: 85px)
+                        st.markdown('<div style="height: 85px; display:flex; flex-direction:column; justify-content:center;">', unsafe_allow_html=True)
                         inner_info, inner_chart = st.columns([1.3, 1], gap="small")
                         
                         f_size = "0.82rem" if len(row['item_name']) <= 12 else "0.72rem"
                         with inner_info:
                             st.markdown(f"""
-                                <div style="display:flex; align-items:baseline; gap:5px; margin-bottom:5px;">
+                                <div style="display:flex; align-items:baseline; gap:5px; margin-bottom:2px;">
                                     <div style="font-size:{f_size}; font-weight:700; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{row['item_name']}">{row['item_name']}</div>
                                     <div style="font-size:0.6rem; color:#94a3b8;">{row['hs_code'][4:]}</div>
                                 </div>
-                                <div style="font-size:1.05rem; font-weight:800; color:#0f172a; margin-bottom:4px;">
+                                <div style="font-size:1.05rem; font-weight:800; color:#0f172a; margin-bottom:2px;">
                                     {int(row['exp_amount_curr']):,} <span style="font-size:0.65rem; font-weight:400; color:#64748b;">M USD</span>
                                 </div>
                                 <div class="delta-row" style="display:flex; flex-wrap:nowrap; align-items:center; gap:3px;">
-                                    <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.58rem; padding:0px 3px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}%</span>
-                                    <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}" style="font-size:0.58rem; padding:0px 3px;">{"▲" if yoy >=0 else "▼"}{abs(yoy):.1f}%</span>
+                                    <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}%</span>
+                                    <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if yoy >=0 else "▼"}{abs(yoy):.1f}%</span>
                                 </div>
                             """, unsafe_allow_html=True)
                             
@@ -251,7 +271,7 @@ with tab1:
                                     hoverinfo='none', showlegend=False
                                 ))
                                 
-                                # 끝점 수치 표시
+                                # 끝점 수치 표시 (우측 여백 충분히 확보)
                                 fig.add_annotation(
                                     x=last_month, y=last_val,
                                     text=f" {int(last_val):,}M USD",
@@ -260,9 +280,9 @@ with tab1:
                                 )
                             
                             fig.update_layout(
-                                title=dict(text="품목 누적 수출액", x=0.5, y=0.98, font=dict(size=8, color='#64748b')),
-                                margin=dict(l=2, r=35, t=18, b=2),
-                                height=70,
+                                title=dict(text="품목 누적", x=0.5, y=0.92, font=dict(size=8, color='#64748b')),
+                                margin=dict(l=2, r=45, t=15, b=2), # r=45로 수치 잘림 방지
+                                height=65,
                                 xaxis=dict(visible=False, categoryorder='array', categoryarray=[f"2026{m:02d}" for m in range(1, 13)]),
                                 yaxis=dict(visible=False),
                                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
