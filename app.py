@@ -70,19 +70,6 @@ processor = data_processor.DataProcessor()
 
 import concurrent.futures
 
-@st.cache_data(ttl=3600)
-def load_data(months=13):
-    """병렬 처리를 통해 데이터를 고속으로 로드합니다."""
-    end_date = datetime.now()
-    start_date = (end_date - timedelta(days=30 * (months - 1)))
-    
-    start_month = start_date.strftime("%Y%m")
-    end_month = end_date.strftime("%Y%m")
-    
-    items_list = list(data_processor.ICT_DETAIL_ITEMS.items())
-    total_items = len(items_list)
-    
-    all_rows = []
     
 # 사이드바 설정
 st.sidebar.title("🛠️ 통계 설정")
