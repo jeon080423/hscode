@@ -84,29 +84,72 @@ def load_data(months=13):
     
     all_rows = []
     
+# 사이드바 설정
+st.sidebar.title("🛠️ 통계 설정")
+simulation_mode = st.sidebar.toggle("🌐 시뮬레이션 모드 (API 장애 시)", value=False, help="API 호출 실패 시 가상 데이터를 생성하여 대시보드 구조를 확인합니다.")
+period_options = ["최근 12개월", "최근 6개월", "최근 3개월"]
+selected_period = st.sidebar.selectbox("📅 조회 기간 선택", period_options, index=0)
+
+@st.cache_data(ttl=3600)
+def load_data(months=13, sim_mode=False):
+    """병렬 처리를 통해 데이터를 고속으로 로드합니다."""
+    end_date = datetime.now()
+    start_date = (end_date - timedelta(days=30 * (months - 1)))
+    
+    start_month = start_date.strftime("%Y%m")
+    end_month = end_date.strftime("%Y%m")
+    
+    items_list = list(data_processor.ICT_DETAIL_ITEMS.items())
+    total_items = len(items_list)
+    
+    all_rows = []
+    
     # 병렬 호출 함수 정의
     def fetch_item_data(item_info):
         name, code = item_info
-        df_part, _ = client.fetch_monthly_data(start_month, end_month, code)
+        
+        # 시뮬레이션 모드인 경우 API 호출 건너뛰고 바로 생성
+        if sim_mode:
+            mock_rows = []
+            curr = start_date
+            while curr <= end_date:
+                d = curr.strftime("%Y%m")
+                year = int(d[:4])
+                month = int(d[4:])
+                growth_factor = (year - 2015) * 150
+                val = max(50, int((abs(hash(name)) % 3000) + 200) + growth_factor * (0.5 + (abs(hash(name)) % 100)/100.0) + int(300 * math.sin((month + (abs(hash(name))%6)) * math.pi / 6)) + month * 5)
+                mock_rows.append({
+                    'year_month': d, 'hs_code': code, 'item_name': name,
+                    'exp_amount': val, 'imp_amount': 100 + (hash(name) % 500),
+                    'is_error': False, 'error_msg': None
+                })
+                curr += timedelta(days=31)
+                if curr.day > 28: curr = curr.replace(day=1) + timedelta(days=32)
+                curr = curr.replace(day=1)
+            return pd.DataFrame(mock_rows)
+
+        # 실측 데이터 호출
+        df_part, err_msg = client.fetch_monthly_data(start_month, end_month, code)
         
         if df_part is not None and not df_part.empty:
             df_part['item_name'] = name
             df_part['is_error'] = False
+            df_part['error_msg'] = None
             return df_part
         else:
-            # 실측 데이터 로드 실패 시 가상 데이터 생성 대신 안내를 위한 빈 데이터프레임 반환
-            # (UI에서 '데이터 로드 실패' 메시지를 출력하도록 유도)
+            # 실측 데이터 로드 실패 시 안내를 위한 빈 데이터프레임 반환
             return pd.DataFrame([{
                 'year_month': end_month,
                 'hs_code': code,
                 'item_name': name,
                 'exp_amount': 0.0,
                 'imp_amount': 0.0,
-                'is_error': True
+                'is_error': True,
+                'error_msg': err_msg or "Unknown Error"
             }])
 
     # 병렬 실행 (최대 32개 스레드)
-    with st.status("📊 ICT 품목별 데이터 병렬 동기화 중...", expanded=True) as status:
+    with st.status(f"📊 ICT 품목별 데이터 동기화 중... {'(시뮬레이션)' if sim_mode else ''}", expanded=True) as status:
         progress_bar = st.progress(0)
         with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
             future_to_item = {executor.submit(fetch_item_data, item): item for item in items_list}
@@ -129,7 +172,7 @@ def load_data(months=13):
     return combined
 
 # 데이터 준비
-df = load_data(24) # 2년치
+df = load_data(24, sim_mode=simulation_mode)
 all_months = sorted(df['year_month'].unique())
 display_months = all_months[-12:] # 최근 12개월
 df_display = df[df['year_month'].isin(display_months)]
@@ -182,11 +225,12 @@ growth_mom = processor.calculate_growth(curr_df, prev_df)
 growth_yoy = processor.calculate_growth(curr_df, yoy_df)
 
 final_df = growth_mom.copy()
-# is_error 정보 병합
+# is_error 및 error_msg 정보 병합
 if 'is_error' in curr_df.columns:
-    final_df = pd.merge(final_df, curr_df[['hs_code', 'is_error']], on='hs_code', how='left')
+    final_df = pd.merge(final_df, curr_df[['hs_code', 'is_error', 'error_msg']], on='hs_code', how='left')
 else:
     final_df['is_error'] = False
+    final_df['error_msg'] = None
 
 final_df['growth_rate_yoy'] = growth_yoy['growth_rate'].values if not growth_yoy.empty else 0
 
@@ -262,7 +306,8 @@ with tab1:
                             """, unsafe_allow_html=True)
                             
                             if is_error:
-                                st.markdown('<div style="font-size:0.75rem; color:#ef4444; font-weight:600; margin-top:5px;">⚠️ 로드 실패</div>', unsafe_allow_html=True)
+                                err_text = row.get('error_msg', 'Unknown Error')
+                                st.markdown(f'<div style="font-size:0.75rem; color:#ef4444; font-weight:600; margin-top:5px;" title="{err_text}">⚠️ 로드 실패 ({err_text[:15]})</div>', unsafe_allow_html=True)
                             else:
                                 st.markdown(f"""
                                     <div style="font-size:1.0rem; font-weight:800; color:#0f172a; margin-bottom:3px;">

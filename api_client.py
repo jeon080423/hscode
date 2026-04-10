@@ -32,10 +32,14 @@ class CustomsAPIClient:
             response = requests.get(self.url, params=params, timeout=15)
             if response.status_code == 200:
                 if "<item>" in response.text:
-                    result = self.parse_xml(response.text)
-                    return result, None
+                    result, err = self.parse_xml(response.text)
+                    return result, err
+                elif "resultCode" in response.text:
+                    # 에러 태그 파싱 시도
+                    _, err = self.parse_xml(response.text)
+                    return pd.DataFrame(), err or "No Data"
                 else:
-                    return pd.DataFrame(), None
+                    return pd.DataFrame(), "Empty Response"
             else:
                 return None, f"HTTP {response.status_code}"
         except Exception as e:
