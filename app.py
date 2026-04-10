@@ -91,30 +91,19 @@ def load_data(months=13):
         
         if df_part is not None and not df_part.empty:
             df_part['item_name'] = name
+            df_part['is_error'] = False
             return df_part
         else:
-            # Fallback: 시뮬레이션 데이터 생성 (API 실패 시)
-            mock_rows = []
-            curr = start_date
-            while curr <= end_date:
-                d = curr.strftime("%Y%m")
-                year = int(d[:4])
-                month = int(d[4:])
-                growth_factor = (year - 2015) * 150
-                val = max(50, int((abs(hash(name)) % 3000) + 200) + growth_factor * (0.5 + (abs(hash(name)) % 100)/100.0) + int(300 * math.sin((month + (abs(hash(name))%6)) * math.pi / 6)) + month * 5)
-                
-                mock_rows.append({
-                    'year_month': d,
-                    'hs_code': code,
-                    'item_name': name,
-                    'exp_amount': val,
-                    'imp_amount': 100 + (hash(name) % 500),
-                    'trade_balance': val - (100 + (hash(name) % 500))
-                })
-                curr += timedelta(days=31)
-                if curr.day > 28: curr = curr.replace(day=1) + timedelta(days=32)
-                curr = curr.replace(day=1)
-            return pd.DataFrame(mock_rows)
+            # 실측 데이터 로드 실패 시 가상 데이터 생성 대신 안내를 위한 빈 데이터프레임 반환
+            # (UI에서 '데이터 로드 실패' 메시지를 출력하도록 유도)
+            return pd.DataFrame([{
+                'year_month': end_month,
+                'hs_code': code,
+                'item_name': name,
+                'exp_amount': 0.0,
+                'imp_amount': 0.0,
+                'is_error': True
+            }])
 
     # 병렬 실행 (최대 32개 스레드)
     with st.status("📊 ICT 품목별 데이터 병렬 동기화 중...", expanded=True) as status:
@@ -193,6 +182,12 @@ growth_mom = processor.calculate_growth(curr_df, prev_df)
 growth_yoy = processor.calculate_growth(curr_df, yoy_df)
 
 final_df = growth_mom.copy()
+# is_error 정보 병합
+if 'is_error' in curr_df.columns:
+    final_df = pd.merge(final_df, curr_df[['hs_code', 'is_error']], on='hs_code', how='left')
+else:
+    final_df['is_error'] = False
+
 final_df['growth_rate_yoy'] = growth_yoy['growth_rate'].values if not growth_yoy.empty else 0
 
 # 탭 구성
@@ -256,58 +251,69 @@ with tab1:
                         inner_info, inner_chart = st.columns([1.3, 1], gap="small")
                         
                         f_size = "0.8rem" if len(row['item_name']) <= 12 else "0.7rem"
+                        is_error = row.get('is_error', False) or row['exp_amount_curr'] == 0
+                        
                         with inner_info:
                             st.markdown(f"""
                                 <div style="display:flex; align-items:baseline; gap:4px; margin-bottom:2px; margin-top:2px;">
                                     <div style="font-size:{f_size}; font-weight:700; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{row['item_name']}">{row['item_name']}</div>
                                     <div style="font-size:0.6rem; color:#94a3b8;">{row['hs_code'][4:]}</div>
                                 </div>
-                                <div style="font-size:1.0rem; font-weight:800; color:#0f172a; margin-bottom:3px;">
-                                    {int(row['exp_amount_curr']):,} <span style="font-size:0.65rem; font-weight:400; color:#64748b;">M USD</span>
-                                </div>
-                                <div class="delta-row" style="display:flex; flex-wrap:nowrap; align-items:center; gap:3px;">
-                                    <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}%</span>
-                                    <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if yoy >=0 else "▼"}{abs(yoy):.1f}%</span>
-                                </div>
                             """, unsafe_allow_html=True)
                             
+                            if is_error:
+                                st.markdown('<div style="font-size:0.75rem; color:#ef4444; font-weight:600; margin-top:5px;">⚠️ 로드 실패</div>', unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"""
+                                    <div style="font-size:1.0rem; font-weight:800; color:#0f172a; margin-bottom:3px;">
+                                        {int(row['exp_amount_curr']):,} <span style="font-size:0.65rem; font-weight:400; color:#64748b;">M USD</span>
+                                    </div>
+                                    <div class="delta-row" style="display:flex; flex-wrap:nowrap; align-items:center; gap:3px;">
+                                        <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}%</span>
+                                        <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if yoy >=0 else "▼"}{abs(yoy):.1f}%</span>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                            
                         with inner_chart:
-                            # 2026년 1월부터의 누적 데이터 계산
-                            item_history = df[(df['item_name'] == row['item_name']) & (df['year_month'] >= '202601')].sort_values('year_month')
-                            
-                            fig = go.Figure()
-                            if not item_history.empty:
-                                item_history['cum_exp'] = item_history['exp_amount'].cumsum()
-                                last_val = item_history['cum_exp'].iloc[-1]
-                                last_month = item_history['year_month'].iloc[-1]
+                            if is_error:
+                                st.markdown('<div style="height:55px; display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:#94a3b8;">No Data</div>', unsafe_allow_html=True)
+                            else:
+                                # 2026년 1월부터의 누적 데이터 계산
+                                item_history = df[(df['item_name'] == row['item_name']) & (df['year_month'] >= '202601')].sort_values('year_month')
+                                # (기존 그래프 로직 생략 없이 그대로 유지)
+                                fig = go.Figure()
+                                if not item_history.empty and not item_history['exp_amount'].sum() == 0:
+                                    item_history['cum_exp'] = item_history['exp_amount'].cumsum()
+                                    last_val = item_history['cum_exp'].iloc[-1]
+                                    last_month = item_history['year_month'].iloc[-1]
+                                    
+                                    # 곡선 보강
+                                    fig.add_trace(go.Scatter(
+                                        x=item_history['year_month'], y=item_history['cum_exp'],
+                                        fill='tozeroy', fillcolor='rgba(59,130,246,0.1)',
+                                        line=dict(color='#3b82f6', width=2),
+                                        mode='lines+markers',
+                                        marker=dict(size=4),
+                                        hoverinfo='none', showlegend=False
+                                    ))
+                                    
+                                    # 끝점 레이블
+                                    fig.add_annotation(
+                                        x=last_month, y=last_val,
+                                        text=f" {int(last_val):,}M USD",
+                                        showarrow=False, xanchor='left', yanchor='middle',
+                                        font=dict(size=8, color='#1b3a8a', family="Arial Black")
+                                    )
                                 
-                                # 곡선 보강
-                                fig.add_trace(go.Scatter(
-                                    x=item_history['year_month'], y=item_history['cum_exp'],
-                                    fill='tozeroy', fillcolor='rgba(59,130,246,0.1)',
-                                    line=dict(color='#3b82f6', width=2),
-                                    mode='lines+markers',
-                                    marker=dict(size=4),
-                                    hoverinfo='none', showlegend=False
-                                ))
-                                
-                                # 끝점 레이블 (우측 마진 확보된 공간에 표시)
-                                fig.add_annotation(
-                                    x=last_month, y=last_val,
-                                    text=f" {int(last_val):,}M USD",
-                                    showarrow=False, xanchor='left', yanchor='middle',
-                                    font=dict(size=8, color='#1b3a8a', family="Arial Black")
+                                fig.update_layout(
+                                    title=dict(text="품목 누적", x=0.5, y=0.88, font=dict(size=8, color='#64748b')),
+                                    margin=dict(l=2, r=55, t=10, b=2),
+                                    height=55,
+                                    xaxis=dict(visible=False, categoryorder='array', categoryarray=[f"2026{m:02d}" for m in range(1, 13)]),
+                                    yaxis=dict(visible=False),
+                                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
                                 )
-                            
-                            fig.update_layout(
-                                title=dict(text="품목 누적", x=0.5, y=0.88, font=dict(size=8, color='#64748b')),
-                                margin=dict(l=2, r=55, t=10, b=2),
-                                height=55,
-                                xaxis=dict(visible=False, categoryorder='array', categoryarray=[f"2026{m:02d}" for m in range(1, 13)]),
-                                yaxis=dict(visible=False),
-                                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
-                            )
-                            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=f"spark_{row['hs_code']}")
+                                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=f"spark_{row['hs_code']}")
 
 with tab2:
     st.header("📊 품목별 상세 데이터 (관세청)")
