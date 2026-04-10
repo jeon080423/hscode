@@ -34,10 +34,20 @@ st.markdown("""
     .yoy-down { color: #d97706; background-color: #fffbeb; }
     h1, h2, h3 { color: #1e3a8a; }
     .section-header { border-bottom: 2px solid #1e3a8a; padding-bottom: 5px; margin-bottom: 20px; color: #1e3a8a; font-size: 1.5rem; font-weight: 700; }
-    /* Streamlit 컨테이너 슬림화 */
+    /* Streamlit 컨테이너 보더 및 여백 강력 제어 */
     [data-testid="stVerticalBlockBordered"] {
-        padding: 5px 10px !important;
+        padding: 2px 8px !important;
+        min-height: 80px !important;
+        height: 80px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
         margin-bottom: 0px !important;
+    }
+    /* 컬럼 간격 최소화 */
+    [data-testid="column"] {
+        padding-left: 0px !important;
+        padding-right: 0px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -231,18 +241,17 @@ with tab1:
                 
                 with cols[i]:
                     with st.container(border=True):
-                        # 전체 카드 높이 제어를 위한 wrapper div (초슬림: 85px)
-                        st.markdown('<div style="height: 85px; display:flex; flex-direction:column; justify-content:center;">', unsafe_allow_html=True)
+                        # 내부 컬럼으로 정보와 차트 배치
                         inner_info, inner_chart = st.columns([1.3, 1], gap="small")
                         
-                        f_size = "0.82rem" if len(row['item_name']) <= 12 else "0.72rem"
+                        f_size = "0.8rem" if len(row['item_name']) <= 12 else "0.7rem"
                         with inner_info:
                             st.markdown(f"""
-                                <div style="display:flex; align-items:baseline; gap:5px; margin-bottom:2px;">
+                                <div style="display:flex; align-items:baseline; gap:4px; margin-bottom:2px; margin-top:2px;">
                                     <div style="font-size:{f_size}; font-weight:700; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{row['item_name']}">{row['item_name']}</div>
                                     <div style="font-size:0.6rem; color:#94a3b8;">{row['hs_code'][4:]}</div>
                                 </div>
-                                <div style="font-size:1.05rem; font-weight:800; color:#0f172a; margin-bottom:2px;">
+                                <div style="font-size:1.0rem; font-weight:800; color:#0f172a; margin-bottom:3px;">
                                     {int(row['exp_amount_curr']):,} <span style="font-size:0.65rem; font-weight:400; color:#64748b;">M USD</span>
                                 </div>
                                 <div class="delta-row" style="display:flex; flex-wrap:nowrap; align-items:center; gap:3px;">
@@ -261,7 +270,7 @@ with tab1:
                                 last_val = item_history['cum_exp'].iloc[-1]
                                 last_month = item_history['year_month'].iloc[-1]
                                 
-                                # 곡선 추가
+                                # 곡선 보강
                                 fig.add_trace(go.Scatter(
                                     x=item_history['year_month'], y=item_history['cum_exp'],
                                     fill='tozeroy', fillcolor='rgba(59,130,246,0.1)',
@@ -271,24 +280,23 @@ with tab1:
                                     hoverinfo='none', showlegend=False
                                 ))
                                 
-                                # 끝점 수치 표시 (우측 여백 충분히 확보)
+                                # 끝점 레이블 (우측 마진 확보된 공간에 표시)
                                 fig.add_annotation(
                                     x=last_month, y=last_val,
                                     text=f" {int(last_val):,}M USD",
                                     showarrow=False, xanchor='left', yanchor='middle',
-                                    font=dict(size=9, color='#1e3a8a', family="Arial Black")
+                                    font=dict(size=8, color='#1b3a8a', family="Arial Black")
                                 )
                             
                             fig.update_layout(
-                                title=dict(text="품목 누적", x=0.5, y=0.92, font=dict(size=8, color='#64748b')),
-                                margin=dict(l=2, r=45, t=15, b=2), # r=45로 수치 잘림 방지
-                                height=65,
+                                title=dict(text="품목 누적", x=0.5, y=0.88, font=dict(size=8, color='#64748b')),
+                                margin=dict(l=2, r=55, t=10, b=2),
+                                height=55,
                                 xaxis=dict(visible=False, categoryorder='array', categoryarray=[f"2026{m:02d}" for m in range(1, 13)]),
                                 yaxis=dict(visible=False),
                                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
                             )
                             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=f"spark_{row['hs_code']}")
-                        st.markdown('</div>', unsafe_allow_html=True)
 
 with tab2:
     st.header("📊 품목별 상세 데이터 (관세청)")
