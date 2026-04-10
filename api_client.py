@@ -3,14 +3,24 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import datetime
 
+import streamlit as st
+
+# 서비스키 로드 함수
+def get_secret(key_name, default_value=""):
+    try:
+        if key_name in st.secrets:
+            return st.secrets[key_name]
+    except Exception:
+        pass
+    return default_value
+
 # 공공데이터포털 서비스키 (관세청)
-# 금일(4/7) 성공적으로 실측 데이터를 불러왔던 최신 키로 교체합니다.
-CUSTOMS_SERVICE_KEY = "rWV9FTPXzoGfN0Cl232NYiSEKla0pPL9AH8q8DYJfPGGOYqCtrcCC2E7Lef6qnVLjojcUQxhMZ2D0+wMVVx/sA=="
+CUSTOMS_SERVICE_KEY = get_secret("CUSTOMS_SERVICE_KEY", "6be75af37c6693a24417c2ed2930e4bd4dd01dddf289552260ce8ce1daf43414")
 # 관세청_품목별 수출입실적(GW) 정식 서비스 엔드포인트
 CUSTOMS_BASE_URL = "https://apis.data.go.kr/1220000/Itemtrade/getItemtradeList"
 
-# 한국은행 ECOS 서비스키 (제공받은 키 적용)
-ECOS_SERVICE_KEY = "Q33UM6GK6QDQ46NEH83B"
+# 한국은행 ECOS 서비스키
+ECOS_SERVICE_KEY = get_secret("ECOS_SERVICE_KEY", "Q33UM6GK6QDQ46NEH83B")
 ECOS_BASE_URL = "http://ecos.bok.or.kr/api/StatisticSearch"
 
 class CustomsAPIClient:
@@ -55,24 +65,35 @@ class CustomsAPIClient:
 
             items = []
             for item in root.findall('.//item'):
-                # XML 태그에서 기준월(statYymm)과 HS코드 검색
-                stat_month = item.findtext('statYymm') or ""
+                # XML 태그 바리에이션 대응 (신규 키 규격 포함)
+                stat_month = (item.findtext('statYymm') or 
+                              item.findtext('year') or "").replace('.', '') # 2024.12 -> 202412
+                
                 hs_val = item.findtext('hsSgn') or item.findtext('hsCode')
-                name_val = item.findtext('statItemNm') or item.findtext('itemNm')
-                exp_val = item.findtext('expDlAmt') or item.findtext('expAmt') or '0'
-                imp_val = item.findtext('impDlAmt') or item.findtext('impAmt') or '0'
+                
+                name_val = (item.findtext('statItemNm') or 
+                            item.findtext('itemNm') or 
+                            item.findtext('statKor'))
+                
+                exp_val = (item.findtext('expDlAmt') or 
+                           item.findtext('expAmt') or 
+                           item.findtext('expDlr') or '0')
+                
+                imp_val = (item.findtext('impDlAmt') or 
+                           item.findtext('impAmt') or 
+                           item.findtext('impDlr') or '0')
                 
                 if hs_val and stat_month:
                     items.append({
-                        'year_month': stat_month,
+                        'year_month': stat_month[:6],
                         'hs_code': hs_val,
                         'item_name': name_val,
                         'exp_amount': float(str(exp_val).replace(',', '')),
                         'imp_amount': float(str(imp_val).replace(',', '')),
                     })
-            return pd.DataFrame(items)
+            return pd.DataFrame(items), None
         except Exception as e:
-            return None
+            return None, str(e)
 
 class ECOSAPIClient:
     def __init__(self, service_key=ECOS_SERVICE_KEY):
