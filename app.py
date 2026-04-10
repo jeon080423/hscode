@@ -144,7 +144,17 @@ with hdr_right:
         </div>
     """, unsafe_allow_html=True)
 
-# 통계 계산
+# 통계 계산 및 유틸리티
+def get_item_font_size(name):
+    """품목명 길이에 따라 적절한 폰트 사이즈를 반환합니다."""
+    length = len(name)
+    if length <= 10:
+        return "0.9rem"
+    elif length <= 14:
+        return "0.82rem"
+    else:
+        return "0.74rem"
+
 last_month = df_display['year_month'].max()
 prev_month = sorted(df_display['year_month'].unique())[-2] if len(df_display['year_month'].unique()) > 1 else last_month
 yoy_month = (datetime.strptime(last_month, "%Y%m") - timedelta(days=365)).strftime("%Y%m")
@@ -201,23 +211,27 @@ with tab1:
                 
                 with cols[i]:
                     with st.container(border=True):
-                        info_col, chart_col = st.columns([1.1, 1], gap="small")
+                        # 전체 카드 높이 제어를 위한 wrapper div
+                        st.markdown('<div style="height: 140px;">', unsafe_allow_html=True)
+                        inner_info, inner_chart = st.columns([1.2, 1], gap="small")
                         
-                        with info_col:
+                        f_size = get_item_font_size(row['item_name'])
+                        with inner_info:
                             st.markdown(f"""
-                                <div style="font-size:0.9rem; font-weight:700; color:#334155; margin-bottom:2px;" title="{row['item_name']}">{row['item_name']}</div>
-                                <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:5px;">{row['hs_code']}</div>
-                                <div style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:5px;">
+                                <div style="font-size:{f_size}; font-weight:700; color:#334155; line-height:1.2; margin-bottom:2px; height:2.4em; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;" title="{row['item_name']}">
+                                    {row['item_name']}
+                                </div>
+                                <div style="font-size:0.7rem; color:#94a3b8; margin-bottom:4px;">{row['hs_code']}</div>
+                                <div style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:8px;">
                                     {int(row['exp_amount_curr']):,} <span style="font-size:0.7rem; font-weight:400; color:#64748b;">M$</span>
                                 </div>
-                                <div class="delta-row" style="display:flex; flex-direction:row; align-items:center; gap:6px;">
-                                    <span class="delta-badge {'up' if mom >=0 else 'down'}">{"▲" if mom >=0 else "▼"} {abs(mom):.1f}% MoM</span>
-                                    <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}">{"▲" if yoy >=0 else "▼"} {abs(yoy):.1f}% YoY</span>
+                                <div class="delta-row" style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">
+                                    <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.6rem; padding:1px 3px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}%</span>
+                                    <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}" style="font-size:0.6rem; padding:1px 3px;">{"▲" if yoy >=0 else "▼"}{abs(yoy):.1f}%</span>
                                 </div>
                             """, unsafe_allow_html=True)
                             
-                        with chart_col:
-                            # Sparkline (최근 12개월 Area Chart)
+                        with inner_chart:
                             item_history = df[df['item_name'] == row['item_name']].sort_values('year_month').tail(12)
                             fig = go.Figure()
                             fig.add_trace(go.Scatter(
@@ -227,11 +241,12 @@ with tab1:
                                 hoverinfo='none', showlegend=False
                             ))
                             fig.update_layout(
-                                margin=dict(l=0, r=0, t=10, b=0), height=80,
+                                margin=dict(l=0, r=0, t=25, b=0), height=70,
                                 xaxis=dict(visible=False), yaxis=dict(visible=False),
                                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
                             )
                             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=f"spark_{row['hs_code']}")
+                        st.markdown('</div>', unsafe_allow_html=True)
 
 with tab2:
     st.header("📊 품목별 상세 데이터 (관세청)")
