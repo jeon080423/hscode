@@ -213,14 +213,23 @@ growth_mom = processor.calculate_growth(curr_df, prev_df)
 growth_yoy = processor.calculate_growth(curr_df, yoy_df)
 
 final_df = growth_mom.copy()
-# is_error 및 error_msg 정보 병합
+# is_error 및 error_msg 정보 병합 (이미 growth_mom에 포함되어 있지만 보강)
 if 'is_error' in curr_df.columns:
-    final_df = pd.merge(final_df, curr_df[['hs_code', 'is_error', 'error_msg']], on='hs_code', how='left')
+    # 중복 방지를 위해 기존 컬럼 삭제 후 최신 상태 병합
+    cols_to_use = ['hs_code', 'is_error', 'error_msg']
+    final_df = pd.merge(final_df.drop(columns=['is_error', 'error_msg'], errors='ignore'), 
+                        curr_df[cols_to_use].drop_duplicates('hs_code'), on='hs_code', how='left')
 else:
     final_df['is_error'] = False
     final_df['error_msg'] = None
 
-final_df['growth_rate_yoy'] = growth_yoy['growth_rate'].values if not growth_yoy.empty else 0
+# YoY 성장률 병합 - 인덱스 불일치 방지를 위해 merge 사용
+if not growth_yoy.empty:
+    yoy_subset = growth_yoy[['hs_code', 'growth_rate']].rename(columns={'growth_rate': 'growth_rate_yoy'})
+    final_df = pd.merge(final_df, yoy_subset.drop_duplicates('hs_code'), on='hs_code', how='left')
+    final_df['growth_rate_yoy'] = final_df['growth_rate_yoy'].fillna(0)
+else:
+    final_df['growth_rate_yoy'] = 0
 
 # 탭 구성
 tab1, tab2, tab3, tab4 = st.tabs([
