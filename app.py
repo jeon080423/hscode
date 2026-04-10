@@ -14,6 +14,16 @@ st.set_page_config(page_title="관세청 ICT 품목별 수출 실적", layout="w
 # 스타일 설정
 st.markdown("""
 <style>
+    :root {
+        color-scheme: light !important;
+    }
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+    }
+    .main {
+        background-color: #ffffff;
+    }
     .metric-card {
         background-color: white;
         padding: 12px;
@@ -36,6 +46,7 @@ st.markdown("""
     .section-header { border-bottom: 2px solid #1e3a8a; padding-bottom: 5px; margin-bottom: 20px; color: #1e3a8a; font-size: 1.5rem; font-weight: 700; }
     /* Streamlit 컨테이너 보더 및 여백 강력 제어 */
     [data-testid="stVerticalBlockBordered"] {
+        background-color: white !important;
         padding: 2px 8px !important;
         min-height: 80px !important;
         height: 80px !important;
