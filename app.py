@@ -232,14 +232,19 @@ with tab1:
                             """, unsafe_allow_html=True)
                             
                         with inner_chart:
-                            item_history = df[df['item_name'] == row['item_name']].sort_values('year_month').tail(12)
+                            # 2026년 1월부터의 누적 데이터 계산
+                            item_history = df[(df['item_name'] == row['item_name']) & (df['year_month'] >= '202601')].sort_values('year_month')
+                            
                             fig = go.Figure()
-                            fig.add_trace(go.Scatter(
-                                x=item_history['year_month'], y=item_history['exp_amount'],
-                                fill='tozeroy', fillcolor='rgba(59,130,246,0.1)',
-                                line=dict(color='#3b82f6', width=1.5),
-                                hoverinfo='none', showlegend=False
-                            ))
+                            if not item_history.empty:
+                                item_history['cum_exp'] = item_history['exp_amount'].cumsum()
+                                fig.add_trace(go.Scatter(
+                                    x=item_history['year_month'], y=item_history['cum_exp'],
+                                    fill='tozeroy', fillcolor='rgba(59,130,246,0.1)',
+                                    line=dict(color='#3b82f6', width=1.5),
+                                    hoverinfo='none', showlegend=False
+                                ))
+                            
                             fig.update_layout(
                                 margin=dict(l=0, r=0, t=10, b=0), height=55,
                                 xaxis=dict(visible=False), yaxis=dict(visible=False),
