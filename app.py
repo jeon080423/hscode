@@ -136,16 +136,21 @@ def load_data(months=13, sim_mode=False):
                 'error_msg': err_msg or "Unknown Error"
             }])
 
-    # 병렬 실행 (최대 32개 스레드)
+    # 병렬 실행 (안정성을 위해 최대 10개 스레드로 제한)
     with st.status(f"📊 ICT 품목별 데이터 동기화 중... {'(시뮬레이션)' if sim_mode else ''}", expanded=True) as status:
         progress_bar = st.progress(0)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             future_to_item = {executor.submit(fetch_item_data, item): item for item in items_list}
             completed = 0
             for future in concurrent.futures.as_completed(future_to_item):
-                res_df = future.result()
-                if res_df is not None:
-                    all_rows.append(res_df)
+                try:
+                    res_df = future.result(timeout=30)
+                    if res_df is not None:
+                        all_rows.append(res_df)
+                except Exception as e:
+                    # 개별 품목 실패 시 로그만 남기고 계속 진행
+                    st.warning(f"데이터 로드 실패: {future_to_item[future][0]} ({str(e)})")
+                
                 completed += 1
                 progress_bar.progress(completed / total_items)
         
@@ -159,8 +164,8 @@ def load_data(months=13, sim_mode=False):
     combined = processor.categorize_data(combined)
     return combined
 
-# 데이터 준비
-df = load_data(24, sim_mode=simulation_mode)
+# 데이터 준비 (관세청 API 12개월 제한을 고려하여 13개월치 로드 - YoY 비교용)
+df = load_data(13, sim_mode=simulation_mode)
 all_months = sorted(df['year_month'].unique())
 display_months = all_months[-12:] # 최근 12개월
 df_display = df[df['year_month'].isin(display_months)]
@@ -355,7 +360,7 @@ with tab1:
                                     yaxis=dict(visible=False),
                                     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
                                 )
-                                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=f"spark_{row['hs_code']}")
+                                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=f"main_spark_{row['hs_code']}")
 
 with tab2:
     st.header("📊 품목별 상세 데이터 (관세청)")

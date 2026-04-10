@@ -61,7 +61,8 @@ class CustomsAPIClient:
             header = root.find('header')
             if header is not None:
                 if header.findtext('resultCode') != '00':
-                    return None, f"API Error: {header.findtext('resultMsg')}"
+                    res_msg = header.findtext('resultMsg') or "Unknown API Error"
+                    return None, f"API Error: {res_msg}"
 
             items = []
             for item in root.findall('.//item'):
