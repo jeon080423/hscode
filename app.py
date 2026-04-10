@@ -164,10 +164,10 @@ def load_data(months=13, sim_mode=False):
     combined = processor.categorize_data(combined)
     return combined
 
-# 데이터 준비 (관세청 API 12개월 제한을 고려하여 13개월치 로드 - YoY 비교용)
-df = load_data(13, sim_mode=simulation_mode)
+# 데이터 준비 (관세청 API 12개월 제한을 준수하여 12개월치 로드)
+df = load_data(12, sim_mode=simulation_mode)
 all_months = sorted(df['year_month'].unique())
-display_months = all_months[-12:] # 최근 12개월
+display_months = all_months # 최근 12개월 전체 표시
 df_display = df[df['year_month'].isin(display_months)]
 
 # 서비스 무역 데이터 생성 (기존 방식 유지하되 데이터 부족 시 대응)
@@ -207,15 +207,13 @@ def get_item_font_size(name):
         return "0.74rem"
 
 last_month = df_display['year_month'].max()
-prev_month = sorted(df_display['year_month'].unique())[-2] if len(df_display['year_month'].unique()) > 1 else last_month
-yoy_month = (datetime.strptime(last_month, "%Y%m") - timedelta(days=365)).strftime("%Y%m")
+prev_month_list = sorted(df_display['year_month'].unique())
+prev_month = prev_month_list[-2] if len(prev_month_list) > 1 else last_month
 
 curr_df = df_display[df_display['year_month'] == last_month]
 prev_df = df_display[df_display['year_month'] == prev_month]
-yoy_df = df[df['year_month'] == yoy_month]
 
 growth_mom = processor.calculate_growth(curr_df, prev_df)
-growth_yoy = processor.calculate_growth(curr_df, yoy_df)
 
 final_df = growth_mom.copy()
 # is_error 및 error_msg 정보 병합 (이미 growth_mom에 포함되어 있지만 보강)
@@ -227,14 +225,6 @@ if 'is_error' in curr_df.columns:
 else:
     final_df['is_error'] = False
     final_df['error_msg'] = None
-
-# YoY 성장률 병합 - 인덱스 불일치 방지를 위해 merge 사용
-if not growth_yoy.empty:
-    yoy_subset = growth_yoy[['hs_code', 'growth_rate']].rename(columns={'growth_rate': 'growth_rate_yoy'})
-    final_df = pd.merge(final_df, yoy_subset.drop_duplicates('hs_code'), on='hs_code', how='left')
-    final_df['growth_rate_yoy'] = final_df['growth_rate_yoy'].fillna(0)
-else:
-    final_df['growth_rate_yoy'] = 0
 
 # 탭 구성
 tab1, tab2, tab3, tab4 = st.tabs([
@@ -316,8 +306,7 @@ with tab1:
                                         {int(row['exp_amount_curr']):,} <span style="font-size:0.65rem; font-weight:400; color:#64748b;">M USD</span>
                                     </div>
                                     <div class="delta-row" style="display:flex; flex-wrap:nowrap; align-items:center; gap:3px;">
-                                        <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}%</span>
-                                        <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if yoy >=0 else "▼"}{abs(yoy):.1f}%</span>
+                                        <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}% (전월대비)</span>
                                     </div>
                                 """, unsafe_allow_html=True)
                             
@@ -364,7 +353,7 @@ with tab1:
 
 with tab2:
     st.header("📊 품목별 상세 데이터 (관세청)")
-    st.dataframe(final_df[['hs_code', 'item_name', 'category', 'exp_amount_prev', 'exp_amount_curr', 'growth_amount', 'growth_rate', 'growth_rate_yoy']], use_container_width=True, hide_index=True)
+    st.dataframe(final_df[['hs_code', 'item_name', 'category', 'exp_amount_prev', 'exp_amount_curr', 'growth_amount', 'growth_rate']], use_container_width=True, hide_index=True)
 
 with tab3:
     st.header("📈 ICT 수출 트렌드")
