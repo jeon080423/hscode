@@ -161,6 +161,8 @@ def load_data(months=13, sim_mode=False):
         return pd.DataFrame()
         
     combined = pd.concat(all_rows, ignore_index=True)
+    # 데이터 정제: 유효한 6자리 연월 데이터만 유지
+    combined = combined[combined['year_month'].astype(str).str.len() == 6]
     combined = processor.categorize_data(combined)
     return combined
 

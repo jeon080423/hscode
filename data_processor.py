@@ -120,8 +120,13 @@ class DataProcessor:
         
         all_service_data = []
         for yyyymm in months_list:
-            year = int(yyyymm[:4])
-            month = int(yyyymm[4:])
+            if not yyyymm or len(yyyymm) < 4:
+                continue
+            try:
+                year = int(yyyymm[:4])
+                month = int(yyyymm[4:])
+            except (ValueError, IndexError):
+                continue
             
             for item, specs in service_items.items():
                 growth_factor = (year - 2020) * 50
