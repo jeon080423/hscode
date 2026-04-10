@@ -211,23 +211,23 @@ with tab1:
                 
                 with cols[i]:
                     with st.container(border=True):
-                        # 전체 카드 높이 제어를 위한 wrapper div
-                        st.markdown('<div style="height: 140px;">', unsafe_allow_html=True)
-                        inner_info, inner_chart = st.columns([1.2, 1], gap="small")
+                        # 전체 카드 높이 제어를 위한 wrapper div (슬림형: 80px)
+                        st.markdown('<div style="height: 80px; overflow: hidden;">', unsafe_allow_html=True)
+                        inner_info, inner_chart = st.columns([1.5, 1], gap="small")
                         
-                        f_size = get_item_font_size(row['item_name'])
+                        f_size = "0.82rem" if len(row['item_name']) <= 12 else "0.72rem"
                         with inner_info:
                             st.markdown(f"""
-                                <div style="font-size:{f_size}; font-weight:700; color:#334155; line-height:1.2; margin-bottom:2px; height:2.4em; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;" title="{row['item_name']}">
-                                    {row['item_name']}
+                                <div style="display:flex; align-items:baseline; gap:5px; margin-bottom:0px;">
+                                    <div style="font-size:{f_size}; font-weight:700; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{row['item_name']}">{row['item_name']}</div>
+                                    <div style="font-size:0.6rem; color:#94a3b8;">{row['hs_code'][4:]}</div>
                                 </div>
-                                <div style="font-size:0.7rem; color:#94a3b8; margin-bottom:4px;">{row['hs_code']}</div>
-                                <div style="font-size:1.1rem; font-weight:800; color:#0f172a; margin-bottom:8px;">
-                                    {int(row['exp_amount_curr']):,} <span style="font-size:0.7rem; font-weight:400; color:#64748b;">M$</span>
+                                <div style="font-size:1.0rem; font-weight:800; color:#0f172a; margin-bottom:2px;">
+                                    {int(row['exp_amount_curr']):,} <span style="font-size:0.65rem; font-weight:400; color:#64748b;">M$</span>
                                 </div>
-                                <div class="delta-row" style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">
-                                    <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.6rem; padding:1px 3px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}%</span>
-                                    <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}" style="font-size:0.6rem; padding:1px 3px;">{"▲" if yoy >=0 else "▼"}{abs(yoy):.1f}%</span>
+                                <div class="delta-row" style="display:flex; flex-wrap:nowrap; align-items:center; gap:3px;">
+                                    <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.58rem; padding:0px 3px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}%</span>
+                                    <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}" style="font-size:0.58rem; padding:0px 3px;">{"▲" if yoy >=0 else "▼"}{abs(yoy):.1f}%</span>
                                 </div>
                             """, unsafe_allow_html=True)
                             
@@ -241,7 +241,7 @@ with tab1:
                                 hoverinfo='none', showlegend=False
                             ))
                             fig.update_layout(
-                                margin=dict(l=0, r=0, t=25, b=0), height=70,
+                                margin=dict(l=0, r=0, t=10, b=0), height=55,
                                 xaxis=dict(visible=False), yaxis=dict(visible=False),
                                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
                             )
