@@ -395,8 +395,7 @@ with tab1:
                                         x=last_month, y=last_val,
                                         text=f" {int(last_val):,}M USD",
                                         showarrow=False, xanchor='left', yanchor='middle',
-                                        font=dict(size=8, color='#1b3a8a', family="Arial Black"),
-                                        cliponaxis=False # 영역 밖으로 나가도 표시
+                                        font=dict(size=8, color='#1b3a8a', family="Arial Black")
                                     )
                                 
                                 fig.update_layout(
