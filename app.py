@@ -323,7 +323,7 @@ with tab1:
                             """, unsafe_allow_html=True)
                             
                             if is_error:
-                                err_text = row.get('error_msg', 'Unknown Error')
+                                err_text = str(row.get('error_msg', 'Unknown Error') or 'Unknown Error')
                                 st.markdown(f'<div style="font-size:0.75rem; color:#ef4444; font-weight:600; margin-top:5px;" title="{err_text}">⚠️ 로드 실패 ({err_text[:15]})</div>', unsafe_allow_html=True)
                             else:
                                 st.markdown(f"""
