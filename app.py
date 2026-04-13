@@ -175,11 +175,22 @@ def load_data(months=13, sim_mode=False):
     if not all_rows:
         return pd.DataFrame()
         
-    combined = pd.concat(all_rows, ignore_index=True)
-    # 데이터 정제: 유효한 6자리 연월 데이터만 유지
-    combined = combined[combined['year_month'].astype(str).str.len() == 6]
-    combined = processor.categorize_data(combined)
-    return combined
+    df = pd.concat(all_rows, ignore_index=True)
+    
+    # 💡 동일 품목명 데이터 합산 (Aggregation)
+    # 여러 HS 코드가 동일한 품목명으로 매핑된 경우 하나로 합칩니다.
+    df = df.groupby(['item_name', 'year_month']).agg({
+        'exp_amount': 'sum',
+        'imp_amount': 'sum',
+        'hs_code': 'min', # 대표 HS 코드
+        'is_error': 'first',
+        'error_msg': 'first'
+    }).reset_index()
+    
+    # 카테고리 재처리
+    df = processor.categorize_data(df)
+    
+    return df
 
 # 데이터 준비 (YoY 계산을 위해 최소 13-14개월 로드)
 df = load_data(14, sim_mode=simulation_mode)
@@ -359,17 +370,18 @@ with tab1:
                                         hoverinfo='none', showlegend=False
                                     ))
                                     
-                                    # 끝점 레이블
+                                    # 끝점 레이블 (잘리지 않도록 여백 확보)
                                     fig.add_annotation(
                                         x=last_month, y=last_val,
                                         text=f" {int(last_val):,}M USD",
                                         showarrow=False, xanchor='left', yanchor='middle',
-                                        font=dict(size=8, color='#1b3a8a', family="Arial Black")
+                                        font=dict(size=8, color='#1b3a8a', family="Arial Black"),
+                                        cliponaxis=False # 영역 밖으로 나가도 표시
                                     )
                                 
                                 fig.update_layout(
                                     title=dict(text="품목 누적", x=0.5, y=0.88, font=dict(size=8, color='#64748b')),
-                                    margin=dict(l=2, r=55, t=10, b=2),
+                                    margin=dict(l=2, r=75, t=10, b=2), # 우측 여백 확대
                                     height=55,
                                     xaxis=dict(visible=False, categoryorder='array', categoryarray=[f"2026{m:02d}" for m in range(1, 13)]),
                                     yaxis=dict(visible=False),
