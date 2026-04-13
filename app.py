@@ -143,7 +143,7 @@ def load_data(months=13, sim_mode=False):
     # 병렬 실행 (안정성을 위해 최대 10개 스레드로 제한)
     with st.status(f"📊 ICT 품목별 데이터 동기화 중... {'(시뮬레이션)' if sim_mode else ''}", expanded=True) as status:
         progress_bar = st.progress(0)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
             future_to_item = {executor.submit(fetch_item_data, item): item for item in items_list}
             completed = 0
             for future in concurrent.futures.as_completed(future_to_item):
