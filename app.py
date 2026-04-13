@@ -177,15 +177,28 @@ def load_data(months=13, sim_mode=False):
         
     df = pd.concat(all_rows, ignore_index=True)
     
+    # 유효한 6자리 연월만 유지
+    df = df[df['year_month'].astype(str).str.len() == 6]
+    
     # 💡 동일 품목명 데이터 합산 (Aggregation)
     # 여러 HS 코드가 동일한 품목명으로 매핑된 경우 하나로 합칩니다.
-    df = df.groupby(['item_name', 'year_month']).agg({
-        'exp_amount': 'sum',
-        'imp_amount': 'sum',
-        'hs_code': 'min', # 대표 HS 코드
-        'is_error': 'first',
-        'error_msg': 'first'
-    }).reset_index()
+    # 정상 데이터만 집계하고, 에러 행은 정상 데이터가 없는 경우에만 유지합니다.
+    ok_df = df[df['is_error'] != True].copy()
+    err_df = df[df['is_error'] == True].copy()
+    
+    if not ok_df.empty:
+        ok_agg = ok_df.groupby(['item_name', 'year_month']).agg({
+            'exp_amount': 'sum',
+            'imp_amount': 'sum',
+            'hs_code': 'min',
+        }).reset_index()
+        ok_agg['is_error'] = False
+        ok_agg['error_msg'] = None
+        # 정상 데이터가 있는 품목+월 조합의 에러 행은 제거
+        err_df = err_df[~err_df.set_index(['item_name','year_month']).index.isin(
+            ok_agg.set_index(['item_name','year_month']).index
+        )]
+        df = pd.concat([ok_agg, err_df], ignore_index=True)
     
     # 카테고리 재처리
     df = processor.categorize_data(df)
