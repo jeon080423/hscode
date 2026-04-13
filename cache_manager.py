@@ -49,6 +49,7 @@ class CacheManager:
         ranges = []
         range_start = missing[0]
         prev = missing[0]
+        chunk_len = 1
 
         for current in missing[1:]:
             # current가 prev의 바로 다음 달인지 확인
@@ -65,17 +66,21 @@ class CacheManager:
                     
                 expected_next = f"{next_year}{next_month:02d}"
                 
-                if current == expected_next:
+                # 관세청 API 규칙: 최대 12개월 데이터만 1회 요청 가능하므로 chunk_len 제한
+                if current == expected_next and chunk_len < 12:
                     prev = current
+                    chunk_len += 1
                 else:
                     ranges.append((range_start, prev))
                     range_start = current
                     prev = current
+                    chunk_len = 1
             except Exception:
                 # 파싱 에러 시 그냥 끊어줌
                 ranges.append((range_start, prev))
                 range_start = current
                 prev = current
+                chunk_len = 1
                 
         ranges.append((range_start, prev))
         return ranges
