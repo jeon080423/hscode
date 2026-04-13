@@ -120,16 +120,27 @@ def load_data(months=13, sim_mode=False):
                     curr = curr.replace(month=curr.month + 1)
             return pd.DataFrame(mock_rows)
 
-        # 실측 데이터 호출
-        df_part, err_msg = client.fetch_monthly_data(start_month, end_month, code)
+        # 실측 데이터 호출 (API 1년 제한에 맞추어 분할 호출)
+        # 1. 최근 12개월 (Main)
+        main_start_date = end_date - timedelta(days=31*11)
+        main_start_month = main_start_date.strftime("%Y%m")
+        df_main, err_main = client.fetch_monthly_data(main_start_month, end_month, code)
         
-        if df_part is not None and not df_part.empty:
-            df_part['item_name'] = name
-            df_part['is_error'] = False
-            df_part['error_msg'] = None
-            return df_part
+        # 2. YoY 대상 월 (Sub)
+        yoy_target_date = end_date - timedelta(days=366)
+        yoy_target_month = yoy_target_date.strftime("%Y%m")
+        df_yoy, err_yoy = client.fetch_monthly_data(yoy_target_month, yoy_target_month, code)
+        
+        # 데이터 병합
+        combined_df = pd.concat([df_main, df_yoy], ignore_index=True) if df_main is not None or df_yoy is not None else None
+        
+        if combined_df is not None and not combined_df.empty:
+            combined_df = combined_df.drop_duplicates(['year_month', 'hs_code'])
+            combined_df['item_name'] = name
+            combined_df['is_error'] = False
+            combined_df['error_msg'] = None
+            return combined_df
         else:
-            # 실측 데이터 로드 실패 시 안내를 위한 빈 데이터프레임 반환
             return pd.DataFrame([{
                 'year_month': end_month,
                 'hs_code': code,
@@ -137,7 +148,7 @@ def load_data(months=13, sim_mode=False):
                 'exp_amount': 0.0,
                 'imp_amount': 0.0,
                 'is_error': True,
-                'error_msg': err_msg or "Unknown Error"
+                'error_msg': err_main or err_yoy or "No data returned"
             }])
 
     # 병렬 실행 (안정성을 위해 최대 10개 스레드로 제한)
