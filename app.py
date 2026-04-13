@@ -298,7 +298,7 @@ with tab1:
     with f_col1:
         search_query = st.text_input("🔍 품목 검색 (품목명 또는 HS코드)", placeholder="검색어를 입력하세요.")
     with f_col2:
-        categories = list(data_processor.ICT_CATEGORIES.keys())
+        categories = list(data_processor.ICT_CATEGORIES.keys()) + ["기타 ICT"]
         selected_categories = st.multiselect("📂 대분류 필터", options=categories, default=categories)
     
     # 필터링 적용
@@ -371,16 +371,17 @@ with tab1:
                             if is_error:
                                 st.markdown('<div style="height:55px; display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:#94a3b8;">No Data</div>', unsafe_allow_html=True)
                             else:
-                                # 2026년 1월부터의 누적 데이터 계산
-                                item_history = df[(df['item_name'] == row['item_name']) & (df['year_month'] >= '202601')].sort_values('year_month')
-                                # (기존 그래프 로직 생략 없이 그대로 유지)
+                                # 연도 기준 전체 월 범위 (2026년 1~12월 고정으로 공간 확보)
+                                current_year = last_month[:4] if last_month else "2026"
+                                all_year_months = [f"{current_year}{m:02d}" for m in range(1, 13)]
+                                
+                                item_history = df[(df['item_name'] == row['item_name']) & (df['year_month'].isin(all_year_months))].sort_values('year_month')
                                 fig = go.Figure()
                                 if not item_history.empty and not item_history['exp_amount'].sum() == 0:
                                     item_history['cum_exp'] = item_history['exp_amount'].cumsum()
                                     last_val = item_history['cum_exp'].iloc[-1]
-                                    last_month = item_history['year_month'].iloc[-1]
+                                    last_data_month = item_history['year_month'].iloc[-1]
                                     
-                                    # 곡선 보강
                                     fig.add_trace(go.Scatter(
                                         x=item_history['year_month'], y=item_history['cum_exp'],
                                         fill='tozeroy', fillcolor='rgba(59,130,246,0.1)',
@@ -390,9 +391,8 @@ with tab1:
                                         hoverinfo='none', showlegend=False
                                     ))
                                     
-                                    # 끝점 레이블 (잘리지 않도록 여백 확보)
                                     fig.add_annotation(
-                                        x=last_month, y=last_val,
+                                        x=last_data_month, y=last_val,
                                         text=f" {int(last_val):,}M USD",
                                         showarrow=False, xanchor='left', yanchor='middle',
                                         font=dict(size=8, color='#1b3a8a', family="Arial Black")
@@ -400,9 +400,16 @@ with tab1:
                                 
                                 fig.update_layout(
                                     title=dict(text="품목 누적", x=0.5, y=0.88, font=dict(size=8, color='#64748b')),
-                                    margin=dict(l=2, r=75, t=10, b=2), # 우측 여백 확대
+                                    margin=dict(l=2, r=75, t=10, b=2),
                                     height=55,
-                                    xaxis=dict(visible=False, categoryorder='array', categoryarray=[f"2026{m:02d}" for m in range(1, 13)]),
+                                    # 전체 연도 범위를 x축에 고정 (미래 월도 빈 공간으로 확보)
+                                    xaxis=dict(
+                                        visible=False,
+                                        type='category',
+                                        categoryorder='array',
+                                        categoryarray=all_year_months,
+                                        range=[-0.5, len(all_year_months) - 0.5]
+                                    ),
                                     yaxis=dict(visible=False),
                                     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
                                 )
