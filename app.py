@@ -136,7 +136,20 @@ def load_data(months=13, sim_mode=False):
         
         if combined_df is not None and not combined_df.empty:
             combined_df = combined_df.drop_duplicates(['year_month', 'hs_code'])
-            combined_df['item_name'] = name
+            
+            # Hybrid Naming Logic (6자리 세분화)
+            if len(code) >= 6:
+                # 사용자가 6자리 이상으로 명시적으로 지정한 경우(예: DRAM), 그대로 단일 항목 유지
+                combined_df['item_name'] = name
+            else:
+                # 4자리 등 광역으로 지정된 경우, 실제 응답 데이터의 6자리(소호) 기준으로 쪼개서 표시
+                combined_df['hs6'] = combined_df['hs_code'].astype(str).str.pad(width=6, side='right', fillchar='0').str[:6]
+                # hs_code가 '-' 이거나 없는 경우 요청 코드로 강제 채움
+                combined_df.loc[combined_df['hs_code'] == '-', 'hs6'] = code.ljust(6, '0')
+                
+                # 품목명을 "기존그룹명(6자리코드)" 로 설정 -> 이러면 aggregation 시 각 6자리별로 자연스레 분할됨
+                combined_df['item_name'] = combined_df['hs6'].apply(lambda x: f"{name}({x})")
+                
             combined_df['is_error'] = False
             combined_df['error_msg'] = None
             return combined_df
