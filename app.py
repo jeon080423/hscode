@@ -227,7 +227,7 @@ curr_df = df_display[df_display['year_month'] == last_month]
 prev_df = df_display[df_display['year_month'] == prev_month]
 yoy_prev_df = df_display[df_display['year_month'] == yoy_month] if yoy_month in prev_month_list else None
 
-growth_mom = processor.calculate_growth(curr_df, prev_df, yoy_prev_df)
+growth_mom = processor.calculate_growth(curr_df, prev_df, yoy_df=yoy_prev_df)
 
 final_df = growth_mom.copy()
 # is_error 및 error_msg 정보 병합 (이미 growth_mom에 포함되어 있지만 보강)

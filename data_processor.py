@@ -52,6 +52,7 @@ ICT_DETAIL_ITEMS = {
 
 
 class DataProcessor:
+    # v1.1: Added YoY growth calculation support
     def __init__(self):
         pass
 
