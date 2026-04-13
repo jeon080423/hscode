@@ -76,20 +76,21 @@ class DataProcessor:
     def calculate_growth(self, current_df, prev_df, yoy_df=None):
         """
         당월 vs 전월(MoM) 및 당월 vs 전년동월(YoY) 증감률을 계산합니다.
+        집계(aggregation) 이후 hs_code가 월별로 다를 수 있으므로 item_name 기준으로 merge합니다.
         """
         if current_df is None or prev_df is None:
             return current_df
 
-        # 전월 데이터 병합 (MoM)
-        merged = pd.merge(current_df, prev_df[['hs_code', 'item_name', 'exp_amount']],
-                          on=['hs_code', 'item_name'], suffixes=('_curr', '_prev'), how='left')
+        # 전월 데이터 병합 (MoM) - item_name 기준
+        merged = pd.merge(current_df, prev_df[['item_name', 'exp_amount']],
+                          on='item_name', suffixes=('_curr', '_prev'), how='left')
         merged['growth_amount'] = merged['exp_amount_curr'] - merged['exp_amount_prev'].fillna(0)
         merged['growth_rate'] = (merged['growth_amount'] / merged['exp_amount_prev'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
 
-        # 전년동월 데이터 병합 (YoY)
-        if yoy_df is not None:
-            merged = pd.merge(merged, yoy_df[['hs_code', 'item_name', 'exp_amount']],
-                              on=['hs_code', 'item_name'], how='left')
+        # 전년동월 데이터 병합 (YoY) - item_name 기준
+        if yoy_df is not None and not yoy_df.empty:
+            merged = pd.merge(merged, yoy_df[['item_name', 'exp_amount']],
+                              on='item_name', how='left')
             merged = merged.rename(columns={'exp_amount': 'exp_amount_yoy'})
             merged['growth_amount_yoy'] = merged['exp_amount_curr'] - merged['exp_amount_yoy'].fillna(0)
             merged['growth_rate_yoy'] = (merged['growth_amount_yoy'] / merged['exp_amount_yoy'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
