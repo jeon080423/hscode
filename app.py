@@ -265,12 +265,19 @@ yoy_prev_df = df_display[df_display['year_month'] == yoy_month] if yoy_month in 
 growth_mom = processor.calculate_growth(curr_df, prev_df, yoy_df=yoy_prev_df)
 
 final_df = growth_mom.copy()
-# is_error 및 error_msg 정보 병합 (이미 growth_mom에 포함되어 있지만 보강)
+# category 컬럼 재보정 (calculate_growth merge 이후 누락될 수 있음)
+if 'category' not in final_df.columns or final_df['category'].isna().any():
+    final_df = processor.categorize_data(final_df)
+
+# is_error 및 error_msg 정보 병합
 if 'is_error' in curr_df.columns:
-    # 중복 방지를 위해 기존 컬럼 삭제 후 최신 상태 병합
-    cols_to_use = ['hs_code', 'is_error', 'error_msg']
-    final_df = pd.merge(final_df.drop(columns=['is_error', 'error_msg'], errors='ignore'), 
-                        curr_df[cols_to_use].drop_duplicates('hs_code'), on='hs_code', how='left')
+    # item_name 기준으로 merge (aggregation 후 hs_code가 바뀔 수 있으므로)
+    cols_to_use = ['item_name', 'is_error', 'error_msg']
+    final_df = pd.merge(
+        final_df.drop(columns=['is_error', 'error_msg'], errors='ignore'),
+        curr_df[cols_to_use].drop_duplicates('item_name'),
+        on='item_name', how='left'
+    )
 else:
     final_df['is_error'] = False
     final_df['error_msg'] = None
