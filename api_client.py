@@ -89,8 +89,8 @@ class CustomsAPIClient:
                         'year_month': stat_month[:6],
                         'hs_code': hs_val,
                         'item_name': name_val,
-                        'exp_amount': float(str(exp_val).replace(',', '')),
-                        'imp_amount': float(str(imp_val).replace(',', '')),
+                        'exp_amount': float(str(exp_val).replace(',', '')) / 1000000,
+                        'imp_amount': float(str(imp_val).replace(',', '')) / 1000000,
                     })
             return pd.DataFrame(items), None
         except Exception as e:
