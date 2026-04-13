@@ -80,6 +80,7 @@ selected_period = st.sidebar.selectbox("📅 조회 기간 선택", period_optio
 
 @st.cache_data(ttl=3600)
 def load_data(months=13, sim_mode=False):
+    # CACHE BUST: 2026-04-13 (Forces Streamlit to drop the old error cache)
     """병렬 처리를 통해 데이터를 고속으로 로드합니다."""
     # 공공데이터 API 업데이트 지연을 고려하여 1개월 전을 기준일로 설정
     end_date = datetime.now() - timedelta(days=30)
