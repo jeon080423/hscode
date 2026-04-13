@@ -9,7 +9,7 @@ import api_client
 import data_processor
 
 # 페이지 설정
-st.set_page_config(page_title="관세청 ICT 품목별 수출 실적", layout="wide")
+st.set_page_config(page_title="관세청 ICT 품목별 수출 실적", layout="wide", initial_sidebar_state="collapsed")
 
 # 스타일 설정
 st.markdown("""
@@ -99,7 +99,9 @@ def load_data(months=13, sim_mode=False):
         # 시뮬레이션 모드인 경우 API 호출 건너뛰고 바로 생성
         if sim_mode:
             mock_rows = []
-            curr = start_date
+            # 14개월 전부터 현재까지 데이터 생성
+            curr = end_date - timedelta(days=32 * (months - 1))
+            curr = curr.replace(day=1)
             while curr <= end_date:
                 d = curr.strftime("%Y%m")
                 year = int(d[:4])
@@ -108,12 +110,14 @@ def load_data(months=13, sim_mode=False):
                 val = max(50, int((abs(hash(name)) % 3000) + 200) + growth_factor * (0.5 + (abs(hash(name)) % 100)/100.0) + int(300 * math.sin((month + (abs(hash(name))%6)) * math.pi / 6)) + month * 5)
                 mock_rows.append({
                     'year_month': d, 'hs_code': code, 'item_name': name,
-                    'exp_amount': val, 'imp_amount': 100 + (hash(name) % 500),
+                    'exp_amount': float(val), 'imp_amount': 100.0 + (hash(name) % 500),
                     'is_error': False, 'error_msg': None
                 })
-                curr += timedelta(days=31)
-                if curr.day > 28: curr = curr.replace(day=1) + timedelta(days=32)
-                curr = curr.replace(day=1)
+                # 다음 달 1일로 이동
+                if curr.month == 12:
+                    curr = curr.replace(year=curr.year + 1, month=1)
+                else:
+                    curr = curr.replace(month=curr.month + 1)
             return pd.DataFrame(mock_rows)
 
         # 실측 데이터 호출
@@ -166,8 +170,8 @@ def load_data(months=13, sim_mode=False):
     combined = processor.categorize_data(combined)
     return combined
 
-# 데이터 준비 (관세청 API 12개월 제한을 준수하여 12개월치 로드)
-df = load_data(12, sim_mode=simulation_mode)
+# 데이터 준비 (YoY 계산을 위해 최소 13-14개월 로드)
+df = load_data(14, sim_mode=simulation_mode)
 all_months = sorted(df['year_month'].unique())
 display_months = all_months # 최근 12개월 전체 표시
 df_display = df[df['year_month'].isin(display_months)]
@@ -212,10 +216,18 @@ last_month = df_display['year_month'].max()
 prev_month_list = sorted(df_display['year_month'].unique())
 prev_month = prev_month_list[-2] if len(prev_month_list) > 1 else last_month
 
+# YoY 계산을 위한 전년 동월 식별
+try:
+    l_year, l_month = int(last_month[:4]), int(last_month[4:])
+    yoy_month = f"{l_year-1}{l_month:02d}"
+except Exception:
+    yoy_month = None
+
 curr_df = df_display[df_display['year_month'] == last_month]
 prev_df = df_display[df_display['year_month'] == prev_month]
+yoy_prev_df = df_display[df_display['year_month'] == yoy_month] if yoy_month in prev_month_list else None
 
-growth_mom = processor.calculate_growth(curr_df, prev_df)
+growth_mom = processor.calculate_growth(curr_df, prev_df, yoy_prev_df)
 
 final_df = growth_mom.copy()
 # is_error 및 error_msg 정보 병합 (이미 growth_mom에 포함되어 있지만 보강)
@@ -308,7 +320,8 @@ with tab1:
                                         {int(row['exp_amount_curr']):,} <span style="font-size:0.65rem; font-weight:400; color:#64748b;">M USD</span>
                                     </div>
                                     <div class="delta-row" style="display:flex; flex-wrap:nowrap; align-items:center; gap:3px;">
-                                        <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}% (전월대비)</span>
+                                        <span class="delta-badge {'up' if mom >=0 else 'down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if mom >=0 else "▼"}{abs(mom):.1f}% (MoM)</span>
+                                        <span class="delta-badge {'yoy-up' if yoy >=0 else 'yoy-down'}" style="font-size:0.56rem; padding:0px 2px;">{"▲" if yoy >=0 else "▼"}{abs(yoy):.1f}% (YoY)</span>
                                     </div>
                                 """, unsafe_allow_html=True)
                             
@@ -351,7 +364,7 @@ with tab1:
                                     yaxis=dict(visible=False),
                                     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
                                 )
-                                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=f"main_spark_{row['hs_code']}")
+                                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}, key=f"main_spark_{row['hs_code']}_{hash(row['item_name'])}")
 
 with tab2:
     st.header("📊 품목별 상세 데이터 (관세청)")
