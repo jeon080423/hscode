@@ -7,6 +7,7 @@ import math
 import base64
 import api_client
 import data_processor
+from cache_manager import CacheManager
 
 # 페이지 설정
 st.set_page_config(page_title="관세청 ICT 품목별 수출 실적", layout="wide", initial_sidebar_state="collapsed")
@@ -120,20 +121,58 @@ def load_data(months=13, sim_mode=False):
                     curr = curr.replace(month=curr.month + 1)
             return pd.DataFrame(mock_rows)
 
-        # 실측 데이터 호출 (API 1년 제한에 맞추어 분할 호출)
-        # 1. 최근 12개월 (Main)
-        main_start_date = end_date - timedelta(days=31*11)
-        main_start_month = main_start_date.strftime("%Y%m")
-        df_main, err_main = client.fetch_monthly_data(main_start_month, end_month, code)
-        
-        # 2. YoY 대상 월 (Sub)
+        # 실측 데이터 호출 전략: 필요한 전체 월 목록 구성
+        main_start_date = end_date - timedelta(days=31*11) # 약 12개월
+        curr_d = main_start_date.replace(day=1)
+        req_months = []
+        while curr_d <= end_date:
+            req_months.append(curr_d.strftime("%Y%m"))
+            if curr_d.month == 12:
+                curr_d = curr_d.replace(year=curr_d.year + 1, month=1)
+            else:
+                curr_d = curr_d.replace(month=curr_d.month + 1)
+                
         yoy_target_date = end_date - timedelta(days=366)
         yoy_target_month = yoy_target_date.strftime("%Y%m")
-        df_yoy, err_yoy = client.fetch_monthly_data(yoy_target_month, yoy_target_month, code)
+        if yoy_target_month not in req_months:
+            req_months.append(yoy_target_month)
+        req_months = sorted(list(set(req_months)))
         
+        # 1. 파일에서 캐싱된 데이터 가져오기 (req_code == code 인 것)
+        cache_df = CacheManager.load_cache()
+        cached_months = []
+        item_cache_df = pd.DataFrame()
+        if not cache_df.empty and 'req_code' in cache_df.columns:
+            item_cache_df = cache_df[cache_df['req_code'] == code]
+            cached_months = item_cache_df['year_month'].unique().tolist()
+            
+        # 2. 누락된 기간 구하기
+        missing_ranges = CacheManager.get_missing_ranges(req_months, cached_months)
+        
+        fetched_dfs = []
+        if not item_cache_df.empty:
+            fetched_dfs.append(item_cache_df)
+            
+        # 3. 누락된 기간만 API로 요청
+        fetch_error = None
+        for start_m, end_m in missing_ranges:
+            df, err = client.fetch_monthly_data(start_m, end_m, code)
+            if df is not None and not df.empty:
+                df['req_code'] = code # 캐시 저장을 위한 요청 코드 기록
+                fetched_dfs.append(df)
+            if err:
+                fetch_error = err
+                
         # 데이터 병합
-        combined_df = pd.concat([df_main, df_yoy], ignore_index=True) if df_main is not None or df_yoy is not None else None
+        combined_df = pd.concat(fetched_dfs, ignore_index=True) if fetched_dfs else None
         
+        # 새로 받아온 데이터를 캐시에 저장
+        if combined_df is not None and not combined_df.empty:
+            # 전체 combined_df를 캐시에 업데이트 시도 (내부에서 중복 제거 처리)
+            CacheManager.save_to_cache(combined_df)
+            
+            # 필요한 월만 필터링
+            combined_df = combined_df[combined_df['year_month'].isin(req_months)]
         if combined_df is not None and not combined_df.empty:
             combined_df = combined_df.drop_duplicates(['year_month', 'hs_code'])
             
@@ -157,11 +196,12 @@ def load_data(months=13, sim_mode=False):
             return pd.DataFrame([{
                 'year_month': end_month,
                 'hs_code': code,
+                'req_code': code,
                 'item_name': name,
                 'exp_amount': 0.0,
                 'imp_amount': 0.0,
                 'is_error': True,
-                'error_msg': err_main or err_yoy or "No data returned"
+                'error_msg': fetch_error or "No data returned"
             }])
 
     # 병렬 실행 (안정성을 위해 최대 10개 스레드로 제한)
