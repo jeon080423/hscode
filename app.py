@@ -80,7 +80,7 @@ selected_period = st.sidebar.selectbox("📅 조회 기간 선택", period_optio
 
 @st.cache_data(ttl=3600)
 def load_data(months=13, sim_mode=False):
-    # CACHE BUST: 2026-04-13 (Forces Streamlit to drop the old error cache)
+    # CACHE BUST: 2026-04-14 (Fix 0-value rendering, add detailed API names)
     """병렬 처리를 통해 데이터를 고속으로 로드합니다."""
     # 공공데이터 API 업데이트 지연을 고려하여 1개월 전을 기준일로 설정
     end_date = datetime.now() - timedelta(days=30)
@@ -169,41 +169,53 @@ def load_data(months=13, sim_mode=False):
         
         # 새로 받아온 데이터를 캐시에 저장
         if combined_df is not None and not combined_df.empty:
-            # 전체 combined_df를 캐시에 업데이트 시도 (내부에서 중복 제거 처리)
             CacheManager.save_to_cache(combined_df)
-            
-            # 필요한 월만 필터링
             combined_df = combined_df[combined_df['year_month'].isin(req_months)]
+            
         if combined_df is not None and not combined_df.empty:
             combined_df = combined_df.drop_duplicates(['year_month', 'hs_code'])
             
             # Hybrid Naming Logic (6자리 세분화)
             if len(code) >= 6:
-                # 사용자가 6자리 이상으로 명시적으로 지정한 경우(예: DRAM), 그대로 단일 항목 유지
                 combined_df['item_name'] = name
             else:
-                # 4자리 등 광역으로 지정된 경우, 실제 응답 데이터의 6자리(소호) 기준으로 쪼개서 표시
                 combined_df['hs6'] = combined_df['hs_code'].astype(str).str.pad(width=6, side='right', fillchar='0').str[:6]
-                # hs_code가 '-' 이거나 없는 경우 요청 코드로 강제 채움
                 combined_df.loc[combined_df['hs_code'] == '-', 'hs6'] = code.ljust(6, '0')
                 
-                # 품목명을 "기존그룹명(6자리코드)" 로 설정 -> 이러면 aggregation 시 각 6자리별로 자연스레 분할됨
-                combined_df['item_name'] = combined_df['hs6'].apply(lambda x: f"{name}({x})")
+                # API 상세 이름(statKor) 보존
+                api_name_map = combined_df.groupby('hs6')['item_name'].first().to_dict()
+                combined_df['item_name'] = combined_df['hs6'].apply(lambda x: f"{name}({x}) {api_name_map.get(x, '')}".strip())
                 
             combined_df['is_error'] = False
             combined_df['error_msg'] = None
             return combined_df
         else:
-            return pd.DataFrame([{
-                'year_month': end_month,
-                'hs_code': code,
-                'req_code': code,
-                'item_name': name,
-                'exp_amount': 0.0,
-                'imp_amount': 0.0,
-                'is_error': True,
-                'error_msg': fetch_error or "No data returned"
-            }])
+            # 에러가 아니고 단순 데이터가 없는 경우(조회결과 0건)
+            if fetch_error == "No Data" or fetch_error is None:
+                mock_rows = []
+                for ym in req_months:
+                    mock_rows.append({
+                        'year_month': ym,
+                        'hs_code': code,
+                        'req_code': code,
+                        'item_name': name,
+                        'exp_amount': 0.0,
+                        'imp_amount': 0.0,
+                        'is_error': False,
+                        'error_msg': None
+                    })
+                return pd.DataFrame(mock_rows)
+            else:
+                return pd.DataFrame([{
+                    'year_month': end_month,
+                    'hs_code': code,
+                    'req_code': code,
+                    'item_name': name,
+                    'exp_amount': 0.0,
+                    'imp_amount': 0.0,
+                    'is_error': True,
+                    'error_msg': fetch_error or "Unknown Error"
+                }])
 
     # 병렬 실행 (안정성을 위해 최대 10개 스레드로 제한)
     with st.status(f"📊 ICT 품목별 데이터 동기화 중... {'(시뮬레이션)' if sim_mode else ''}", expanded=True) as status:
@@ -396,20 +408,28 @@ with tab1:
                         # 내부 컬럼으로 정보와 차트 배치
                         inner_info, inner_chart = st.columns([1.3, 1], gap="small")
                         
-                        f_size = "0.8rem" if len(row['item_name']) <= 12 else "0.7rem"
-                        is_error = row.get('is_error', False) or row['exp_amount_curr'] == 0
+                        f_size = "0.75rem" if len(row['item_name']) <= 12 else "0.65rem"
+                        is_error = bool(row.get('is_error', False))
+                        is_zero = not is_error and row['exp_amount_curr'] == 0
                         
                         with inner_info:
                             st.markdown(f"""
                                 <div style="display:flex; align-items:baseline; gap:4px; margin-bottom:2px; margin-top:2px;">
                                     <div style="font-size:{f_size}; font-weight:700; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{row['item_name']}">{row['item_name']}</div>
-                                    <div style="font-size:0.6rem; color:#94a3b8;">{row['hs_code'][4:]}</div>
+                                    <div style="font-size:0.6rem; color:#94a3b8;">{row['hs_code'][:4] if len(row['hs_code']) >= 4 else row['hs_code']}</div>
                                 </div>
                             """, unsafe_allow_html=True)
                             
                             if is_error:
                                 err_text = str(row.get('error_msg', 'Unknown Error') or 'Unknown Error')
                                 st.markdown(f'<div style="font-size:0.75rem; color:#ef4444; font-weight:600; margin-top:5px;" title="{err_text}">⚠️ 로드 실패 ({err_text[:15]})</div>', unsafe_allow_html=True)
+                            elif is_zero:
+                                st.markdown(f"""
+                                    <div style="font-size:1.0rem; font-weight:800; color:#cbd5e1; margin-bottom:3px;">
+                                        0 <span style="font-size:0.65rem; font-weight:400; color:#cbd5e1;">M USD</span>
+                                    </div>
+                                    <div style="font-size:0.56rem; color:#94a3b8; margin-top:2px;">(실적 없음)</div>
+                                """, unsafe_allow_html=True)
                             else:
                                 st.markdown(f"""
                                     <div style="font-size:1.0rem; font-weight:800; color:#0f172a; margin-bottom:3px;">
@@ -422,7 +442,7 @@ with tab1:
                                 """, unsafe_allow_html=True)
                             
                         with inner_chart:
-                            if is_error:
+                            if is_error or is_zero:
                                 st.markdown('<div style="height:55px; display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:#94a3b8;">No Data</div>', unsafe_allow_html=True)
                             else:
                                 # 연도 기준 전체 월 범위 (2026년 1~12월 고정으로 공간 확보)
