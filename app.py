@@ -501,6 +501,15 @@ with tab3:
 
 with tab4:
     st.header("☁️ 서비스 무역(SW·ICT 서비스) 현황 (출처: 한국은행)")
+    
+    st.markdown("""
+        <div style="font-size:0.85rem; color:#64748b; margin-bottom:15px; padding:10px; background-color:#f8fafc; border-radius:5px; border-left:4px solid #3b82f6;">
+            <strong>💡 참고: 컴퓨터서비스(SW) 카테고리란?</strong><br>
+            한국은행 국제수지(BOP) 통계 기준, 실물이 없는 순수 <b>소프트웨어(SW)의 공식 수출 수출 실적은 상품 통계가 아닌 서비스 무역 통계의 '컴퓨터서비스' 항목으로 집계</b>됩니다. <br>
+            *포함 내역: 소프트웨어의 개발, 제작, 공급, 라이센싱 판권, 시스템 구축, IT 컨설팅 등
+        </div>
+    """, unsafe_allow_html=True)
+    
     col_l, col_r = st.columns([2, 1])
     with col_l:
         st.plotly_chart(px.line(df_service_display, x='year_month', y='exp_amount', color='service_name', markers=True, template="plotly_white"), use_container_width=True)
