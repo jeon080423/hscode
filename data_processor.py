@@ -137,7 +137,7 @@ class DataProcessor:
         service_items = {
             "컴퓨터서비스(SW)": {"base": 800, "growth": 1.2},
             "정보서비스": {"base": 300, "growth": 1.1},
-            "통통신서비스": {"base": 200, "growth": 1.05},
+            "통신서비스": {"base": 200, "growth": 1.05},
             "기타 지식서비스": {"base": 150, "growth": 1.08}
         }
         
